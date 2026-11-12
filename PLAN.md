@@ -448,7 +448,7 @@ Comandos habituales: `make up` (solo opencode), `make up-full` (todo), `make hea
 
 ## 9. Control de costes (OpenRouter / tokens)
 
-- **Modelo único por ahora**: todos los agentes usan `openrouter/deepseek/deepseek-v4.1-flash-1017`. Cuando habilites varios modelos en OpenRouter, se podrá asignar modelos más baratos a turnos ligeros (PO/UX) y más potentes a código/validación (Dev/Validador) — todo editable por `AgentProfile` sin cambios de código. **Ver [`docs/dev-model-limitation.md`](docs/dev-model-limitation.md)**: el rol Dev rinde peor con Flash en turnos largos; ahí se recomiendan modelos (GPT-5.6 Luna / GLM-5.3-Flash / MiniMax M3) con buen equilibrio coste/capacidad.
+- **Modelo único por ahora**: todos los agentes usan `openrouter/deepseek/deepseek-v4.1-flash-1017`. Cuando habilites varios modelos en OpenRouter, se podrá asignar modelos más baratos a turnos ligeros (PO/UX) y más potentes a código/validación (Dev/Validador) — todo editable por `AgentProfile` sin cambios de código. **Ver [`docs/dev-model-limitation.md`](docs/dev-model-limitation.md)**: el rol Dev rinde peor con Flash en turnos largos; ahí se recomiendan modelos (GPT-6 Luna ($0.10/$0.50) / GLM-5.3-Flash / MiniMax M3) con buen equilibrio coste/capacidad.
 - OpenRouter expone coste por request en su respuesta/dashboard; el orquestador registra `tokensIn/Out` por mensaje y calcula coste estimado con una tabla de precios configurable (o leyendo el coste que devuelve OpenRouter).
 - Frenos: `budgetTokens`/`budgetEUR` por conversación y tope global; al superarse, la conversación pasa a `paused`.
 - Recomendado: fijar un **límite de crédito/gasto en el panel de OpenRouter** como red de seguridad adicional.

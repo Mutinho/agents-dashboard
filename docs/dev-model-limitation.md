@@ -50,9 +50,11 @@ en openrouter.ai antes de fijar nada.
 
 | Modelo (OpenRouter) | Precio in / out aprox. | Por qué encaja |
 |---------------------|------------------------|----------------|
-| **`openrouter/openai/gpt-5.6-luna`** (o la mini vigente) | ~$0.20 / ~$1.20 | Mejor "todo-terreno" barato para agente de código: alto Coding-Agent-Index, tool ecosystem OpenAI, contexto ~1M. **Primera opción si está disponible.** |
-| **`openrouter/z-ai/glm-5.3-flash`** (o GLM-flash vigente) | ~$0.15 / ~$0.50 | Mejor open-weight económico: fuerte en DeepSWE/Terminal-Bench, contexto enorme. Excelente coste/output. |
-| **`openrouter/minimax/minimax-m3`** | ~$0.30 / ~$1.20 | Open-weight **diseñado para ejecución de agentes** (buen MCP/tool use). Alternativa sólida si GLM no convence. |
+| **`openrouter/openai/gpt-6-luna`** ⭐ | **$0.10 / $0.50** (cache read $0.01) | **Primera opción.** El más barato en output de los capaces. GPT-6 (sep-2026), contexto 1.1M, tool-calling OpenAI, pensado para tareas agénticas y —a mayor reasoning effort— ingeniería de software. Vibe Code Bench v1.1 = 81.6%. Disponible con EU in-region routing (útil con red corporativa). |
+| **`openrouter/z-ai/glm-5.3-flash`** (o GLM-flash vigente) | ~$0.15 / ~$0.50 | Alternativa open-weight: fuerte en DeepSWE/Terminal-Bench, contexto enorme. |
+| **`openrouter/minimax/minimax-m3`** | ~$0.30 / ~$1.20 | Open-weight **diseñado para ejecución de agentes** (buen MCP/tool use). |
+
+> Matiz honesto sobre `gpt-6-luna`: su **Terminal-Bench 4.0 es bajo (~9-14%)**, así que para loops de terminal muy largos/difíciles no es frontier. Para el rol Dev de proyectos personales (coste primero, tareas acotadas) es la mejor relación calidad/precio; para tareas de código realmente complejas, escala al nivel siguiente en esa conversación concreta.
 
 ### Si el Dev necesita más potencia (tareas de código complejas)
 
@@ -72,7 +74,7 @@ en openrouter.ai antes de fijar nada.
 
 ## 4. Recomendación concreta
 
-1. **Habilita en OpenRouter** uno de: `gpt-5.6-luna` (1ª opción) o `glm-5.3-flash` (mejor coste).
+1. **Habilita en OpenRouter** uno de: `openai/gpt-6-luna` (1ª opción, $0.10/$0.50) o `glm-5.3-flash`.
 2. **Asigna ese modelo solo al rol Dev** (y opcionalmente al Validador cuando ejecute tests). El diseño ya lo permite: el campo `model` es por `AgentProfile`, editable sin tocar código ni arquitectura.
 3. **Deja PO/UX/Validador en DeepSeek Flash** (baratos y suficientes para texto/razonamiento).
 4. Revisa el gasto con el límite de crédito del panel de OpenRouter y las métricas de coste del dashboard (Fase 5).
