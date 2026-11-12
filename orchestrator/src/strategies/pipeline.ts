@@ -66,6 +66,7 @@ export class PipelineStrategy {
     let iteration = 0;
     let stageIndex = 0;
     let lastValidatorFeedback = '';
+    let spentUsd = 0;
 
     while (iteration < conversation.maxIterations) {
       iteration += 1;
@@ -82,6 +83,32 @@ export class PipelineStrategy {
       if (result.error) {
         await repos.setConversationStatus(cid, 'failed');
         emit?.('conversation.status', { conversationId: cid, status: 'failed', error: result.error });
+        return;
+      }
+
+      // Métricas: acumular coste del turno y emitir cost.update.
+      spentUsd += result.cost;
+      emit?.('cost.update', {
+        conversationId: cid,
+        role,
+        turnCostUsd: result.cost,
+        spentUsd,
+        budgetUsd: conversation.budgetUsd,
+      });
+
+      // Freno de presupuesto: si hay límite y se supera, pausar la conversación.
+      if (conversation.budgetUsd > 0 && spentUsd >= conversation.budgetUsd) {
+        await repos.setConversationStatus(cid, 'paused');
+        emit?.('budget.exceeded', {
+          conversationId: cid,
+          spentUsd,
+          budgetUsd: conversation.budgetUsd,
+        });
+        emit?.('conversation.status', {
+          conversationId: cid,
+          status: 'paused',
+          reason: `presupuesto superado ($${spentUsd.toFixed(4)} ≥ $${conversation.budgetUsd})`,
+        });
         return;
       }
 

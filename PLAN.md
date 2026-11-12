@@ -530,10 +530,13 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 >
 > **Aprendizaje aplicado**: los turnos de Dev a veces no retornan (bucle de tool-calls del modelo). Se añadió un **timeout por turno** (`TURN_TIMEOUT_MS`, default 6 min) con `AbortController`: si expira, el turno devuelve error en vez de colgar la conversación. La etapa Dev paralela es **tolerante a fallos** (solo falla si TODAS las instancias fallan).
 
-### Fase 5 — Tiempo real + métricas
-- [ ] Canal WebSocket por conversación (message.created, turn.*, cost.update).
-- [ ] Cálculo de tokens/coste por mensaje y acumulados.
-- [ ] Frenos de presupuesto.
+### Fase 5 — Tiempo real + métricas ✅ COMPLETA (verificada E2E)
+- [x] Canal WebSocket + bus NATS con eventos (`message.created`, `turn.*`, `cost.update`, `budget.exceeded`, `conversation.status`).
+- [x] Cálculo de tokens/coste por mensaje y **agregados** (endpoints `/api/conversations/:id/metrics` y `/api/workspaces/:id/metrics`).
+- [x] **Frenos de presupuesto**: `budgetUsd` por conversación; al superarse → `paused` + eventos.
+
+> **Unidad USD** (coherente con OpenRouter; no se hace conversión de moneda).
+> **Verificado**: conversación con `budgetUsd=0.001` pasó a `paused` tras el primer turno (gastó $0.0023); eventos `cost.update` → `budget.exceeded` → `conversation.status(paused)` emitidos en orden. Caso sin límite (`budgetUsd=0`) completa normal con `budgetRemainingUsd=null`. Métricas agregadas (coste/tokens) correctas por conversación y por workspace.
 
 ### Fase 6 — Dashboard Angular (v1)
 - [ ] Scaffold Angular standalone + signals; `nginx` + Dockerfile.

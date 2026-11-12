@@ -52,6 +52,7 @@ export function buildApi(deps: ApiDeps) {
       maxIterations?: number;
       parallelDev?: number;
       maxParallel?: number;
+      budgetUsd?: number;
     };
     if (!body.goal) return reply.code(400).send({ error: 'goal requerido' });
     return repos.createConversation(
@@ -62,6 +63,7 @@ export function buildApi(deps: ApiDeps) {
       body.maxIterations ?? 10,
       body.parallelDev ?? 1,
       body.maxParallel ?? 2,
+      body.budgetUsd ?? 0,
     );
   });
 
@@ -75,6 +77,28 @@ export function buildApi(deps: ApiDeps) {
   app.get('/api/conversations/:id/messages', async (req) => {
     const { id } = req.params as { id: string };
     return repos.listMessages(id);
+  });
+
+  // Métricas agregadas de una conversación (coste/tokens + presupuesto).
+  app.get('/api/conversations/:id/metrics', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const conv = await repos.getConversation(id);
+    if (!conv) return reply.code(404).send({ error: 'no encontrada' });
+    const metrics = await repos.conversationMetrics(id);
+    return {
+      ...metrics,
+      budgetUsd: conv.budgetUsd,
+      budgetRemainingUsd: conv.budgetUsd > 0 ? Math.max(0, conv.budgetUsd - metrics.costUsd) : null,
+      status: conv.status,
+    };
+  });
+
+  // Métricas agregadas de todo un workspace.
+  app.get('/api/workspaces/:id/metrics', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const ws = await repos.getWorkspace(id);
+    if (!ws) return reply.code(404).send({ error: 'workspace no encontrado' });
+    return repos.workspaceMetrics(id);
   });
 
   // Lanza la ejecución del pipeline en segundo plano (no bloquea la respuesta).

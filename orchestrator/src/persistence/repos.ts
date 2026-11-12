@@ -4,6 +4,7 @@ import type {
   AgentMessage,
   Conversation,
   ConversationStatus,
+  Metrics,
   Workspace,
 } from '../domain/types.js';
 
@@ -56,14 +57,43 @@ export class Repos {
     maxIterations: number,
     parallelDev = 1,
     maxParallel = 2,
+    budgetUsd = 0,
   ): Promise<Conversation> {
     const cid = id('conv');
     const { rows } = await this.pool.query(
-      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations, parallel_dev, max_parallel)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [cid, workspaceId, title, goal, strategy, maxIterations, parallelDev, maxParallel],
+      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations, parallel_dev, max_parallel, budget_usd)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [cid, workspaceId, title, goal, strategy, maxIterations, parallelDev, maxParallel, budgetUsd],
     );
     return this.mapConversation(rows[0]);
+  }
+
+  /** Agregados de coste/tokens de una conversación (desde messages). */
+  async conversationMetrics(conversationId: string): Promise<Metrics> {
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(*)::int AS messages,
+              COALESCE(SUM(tokens_in),0)::int  AS tokens_in,
+              COALESCE(SUM(tokens_out),0)::int AS tokens_out,
+              COALESCE(SUM(cost_estimate),0)   AS cost_usd
+       FROM messages WHERE conversation_id = $1`,
+      [conversationId],
+    );
+    return this.mapMetrics(rows[0]);
+  }
+
+  /** Agregados de coste/tokens de todo un workspace (todas sus conversaciones). */
+  async workspaceMetrics(workspaceId: string): Promise<Metrics> {
+    const { rows } = await this.pool.query(
+      `SELECT COUNT(m.*)::int AS messages,
+              COALESCE(SUM(m.tokens_in),0)::int  AS tokens_in,
+              COALESCE(SUM(m.tokens_out),0)::int AS tokens_out,
+              COALESCE(SUM(m.cost_estimate),0)   AS cost_usd
+       FROM messages m
+       JOIN conversations c ON c.id = m.conversation_id
+       WHERE c.workspace_id = $1`,
+      [workspaceId],
+    );
+    return this.mapMetrics(rows[0]);
   }
 
   async getConversation(cid: string): Promise<Conversation | null> {
@@ -191,8 +221,16 @@ export class Repos {
     maxIterations: r.max_iterations,
     parallelDev: r.parallel_dev ?? 1,
     maxParallel: r.max_parallel ?? 2,
+    budgetUsd: Number(r.budget_usd ?? 0),
     createdAt: r.created_at?.toISOString?.() ?? String(r.created_at),
     finishedAt: r.finished_at?.toISOString?.() ?? null,
+  });
+
+  private mapMetrics = (r: any): Metrics => ({
+    messages: Number(r.messages ?? 0),
+    tokensIn: Number(r.tokens_in ?? 0),
+    tokensOut: Number(r.tokens_out ?? 0),
+    costUsd: Number(r.cost_usd ?? 0),
   });
 
   private mapMessage = (r: any): AgentMessage => ({

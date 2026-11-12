@@ -71,6 +71,8 @@ export interface Conversation {
   parallelDev: number;
   /** Límite de concurrencia real (tope de instancias simultáneas). */
   maxParallel: number;
+  /** Presupuesto en USD; al superarse la conversación pasa a 'paused'. 0 = sin límite. */
+  budgetUsd: number;
   createdAt: string;
   finishedAt: string | null;
 }
@@ -94,6 +96,14 @@ export interface AgentMessage {
 export interface Artifact {
   path: string;
   action: 'created' | 'modified' | 'deleted';
+}
+
+/** Agregados de coste/tokens (por conversación o workspace). */
+export interface Metrics {
+  messages: number;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
 }
 
 /** Resultado de ejecutar el turno de un agente en OpenCode. */
