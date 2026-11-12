@@ -1,0 +1,68 @@
+name: agents-dashboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # OpenCode: motor de agentes (server HTTP headless) conectado a OpenRouter.
+  # ---------------------------------------------------------------------------
+  opencode:
+    build:
+      context: ./config/opencode
+      dockerfile: Dockerfile
+    container_name: ad-opencode
+    restart: unless-stopped
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in .env}
+      OPENCODE_SERVER_USERNAME: ${OPENCODE_SERVER_USERNAME:-opencode}
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
+    volumes:
+      # Config de OpenCode (opencode.jsonc + agentes) como solo-lectura
+      - ./config/opencode/opencode.jsonc:/root/.config/opencode/opencode.jsonc:ro
+      - ./config/opencode/agents:/root/.config/opencode/agents:ro
+      # Estado persistente de OpenCode (sesiones, auth, etc.)
+      - ./data/opencode:/root/.local/share/opencode
+      # Workspaces de trabajo de los agentes
+      - ./workspaces:/workspaces
+    ports:
+      # Publicado SOLO en loopback del host
+      - "127.0.0.1:${OPENCODE_PORT:-4096}:4096"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4096/global/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Postgres: persistencia del dominio (proyectos, agentes, conversaciones...).
+  # Declarado ya; se usará desde la Fase 3.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16
+    container_name: ad-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-own_ia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-own_ia}
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-own_ia} -d ${POSTGRES_DB:-own_ia}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles: ["full"]
+
+  # ---------------------------------------------------------------------------
+  # NATS: bus de mensajes entre agentes (pub/sub). Declarado ya; Fase 4.
+  # ---------------------------------------------------------------------------
+  broker:
+    image: nats:latest
+    container_name: ad-broker
+    restart: unless-stopped
+    command: ["-js"]
+    ports:
+      - "127.0.0.1:${NATS_PORT:-4222}:4222"
+    profiles: ["full"]

@@ -44,3 +44,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# --- CA corporativa local (no versionar; depende de tu red) ---
+config/opencode/certs/*.crt
