@@ -520,11 +520,15 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 > - Healthcheck de opencode debe incluir basic-auth (`-u`), o marca `unhealthy` (401).
 > - Reconstruir el orchestrator con `--no-cache` (Docker cacheaba `COPY src`).
 
-### Fase 4 — Bus de mensajes y paralelismo
-- [ ] Integrar **NATS** (contenedor `broker`) y una interfaz `MessageBus` en el orquestador.
-- [ ] Soporte de **múltiples instancias por rol** (`dev#1`, `dev#2`) con `maxParallel`.
-- [ ] Enrutado por `to` y topics por conversación.
-- [ ] Control de concurrencia y rate limit de OpenRouter.
+### Fase 4 — Bus de mensajes y paralelismo ✅ COMPLETA (verificada E2E)
+- [x] Integrar **NATS** (contenedor `broker`) y una interfaz `MessageBus` en el orquestador (`NatsBus` + `NoopBus` fallback).
+- [x] Soporte de **múltiples instancias por rol** (`dev#1`, `dev#2`) con `maxParallel` (etapa Dev paralela con pool de concurrencia).
+- [x] Topics por conversación (`conv.<id>.events`, `conv.<id>.messages`); `emit` combinado WS + NATS.
+- [x] Control de concurrencia (`maxParallel`) y timeout por turno (robustez modo autónomo).
+
+> **Verificado**: conversación con `parallelDev=2` terminó en `done`. Los eventos NATS mostraron `turn.started dev#1` y `turn.started dev#2` concurrentes; `dev#1` y `dev#2` persistidos como instancias y mensajes separados; `slugify.py` y `wordcount.py` generados y funcionales. Coste $0.0023.
+>
+> **Aprendizaje aplicado**: los turnos de Dev a veces no retornan (bucle de tool-calls del modelo). Se añadió un **timeout por turno** (`TURN_TIMEOUT_MS`, default 6 min) con `AbortController`: si expira, el turno devuelve error en vez de colgar la conversación. La etapa Dev paralela es **tolerante a fallos** (solo falla si TODAS las instancias fallan).
 
 ### Fase 5 — Tiempo real + métricas
 - [ ] Canal WebSocket por conversación (message.created, turn.*, cost.update).

@@ -65,16 +65,43 @@ export class OpencodeClient {
   /**
    * Envía un prompt a un agente dentro de una sesión y espera la respuesta
    * completa (modo síncrono). Devuelve texto, señal y métricas.
+   *
+   * Incluye un timeout por turno (default 6 min): si el agente no responde a
+   * tiempo (p.ej. bucle de tool-calls), se aborta el turno con error en vez de
+   * colgar la conversación indefinidamente. Es robustez para modo autónomo.
    */
   async prompt(
     sessionId: string,
     agent: AgentRole,
     text: string,
   ): Promise<TurnResult> {
-    const r: any = await this.client.session.prompt({
-      path: { id: sessionId },
-      body: { agent, parts: [{ type: 'text', text }] },
-    });
+    const timeoutMs = Number(process.env.TURN_TIMEOUT_MS ?? 6 * 60_000);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let r: any;
+    try {
+      r = await this.client.session.prompt({
+        path: { id: sessionId },
+        body: { agent, parts: [{ type: 'text', text }] },
+        signal: controller.signal,
+      } as any);
+    } catch (err: any) {
+      clearTimeout(timer);
+      const aborted = controller.signal.aborted;
+      return {
+        text: '',
+        signal: null,
+        tokensIn: 0,
+        tokensOut: 0,
+        cost: 0,
+        error: aborted
+          ? `turno abortado por timeout (${timeoutMs} ms)`
+          : err?.message ?? 'error de red en prompt',
+      };
+    }
+    clearTimeout(timer);
+
     const res = r.data ?? r;
     const info = res.info ?? {};
     const parts: any[] = res.parts ?? [];

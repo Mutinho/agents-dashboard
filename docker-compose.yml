@@ -107,6 +107,8 @@ services:
       ORCH_REST_PORT: 8787
       ORCH_WS_PORT: 8788
       NATS_URL: nats://broker:4222
+      # Timeout por turno de agente (robustez modo autónomo). Default 6 min.
+      TURN_TIMEOUT_MS: ${TURN_TIMEOUT_MS:-360000}
     ports:
       - "127.0.0.1:${ORCH_REST_PORT:-8787}:8787"
       - "127.0.0.1:${ORCH_WS_PORT:-8788}:8788"

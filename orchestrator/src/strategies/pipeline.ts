@@ -1,7 +1,6 @@
-import type { AgentRole, Conversation, ControlSignal } from '../domain/types.js';
+import type { AgentRole, Conversation, ControlSignal, TurnResult } from '../domain/types.js';
 import type { OpencodeClient } from '../opencode/client.js';
 import type { Repos } from '../persistence/repos.js';
-import { isTerminal } from './signals.js';
 
 export interface PipelineDeps {
   opencode: OpencodeClient;
@@ -28,6 +27,8 @@ const ROLE_NAME: Record<AgentRole, string> = {
  * - maxIterations acota el número total de turnos para evitar loops infinitos.
  */
 export class PipelineStrategy {
+  private devInstances: { label: string; sessionId: string }[] = [];
+
   constructor(private readonly deps: PipelineDeps) {}
 
   async run(conversation: Conversation, workspacePath = '/workspaces'): Promise<void> {
@@ -37,13 +38,25 @@ export class PipelineStrategy {
     await repos.setConversationStatus(cid, 'running');
     emit?.('conversation.status', { conversationId: cid, status: 'running' });
 
-    // Crea una sesión OpenCode por rol (instancia única por rol en v1).
+    // Crea una sesión OpenCode por rol. Para Dev en paralelo, crea N instancias
+    // (dev#1..devN) además de la sesión base "dev".
     const sessions = new Map<AgentRole, string>();
     for (const role of PIPELINE) {
       const sid = await opencode.createSession(`${conversation.title} · ${role}`);
       sessions.set(role, sid);
       await repos.upsertParticipant(cid, role, role, sid);
     }
+
+    const devInstances: { label: string; sessionId: string }[] = [];
+    if (conversation.parallelDev > 1) {
+      for (let i = 1; i <= conversation.parallelDev; i++) {
+        const label = `dev#${i}`;
+        const sid = await opencode.createSession(`${conversation.title} · ${label}`);
+        devInstances.push({ label, sessionId: sid });
+        await repos.upsertParticipant(cid, 'dev', label, sid);
+      }
+    }
+    this.devInstances = devInstances;
 
     // Contexto compartido que se pasa de etapa a etapa.
     let context =
@@ -57,32 +70,14 @@ export class PipelineStrategy {
     while (iteration < conversation.maxIterations) {
       iteration += 1;
       const role = PIPELINE[stageIndex];
-      const sessionId = sessions.get(role)!;
 
-      const prompt = this.buildPrompt(role, context, lastValidatorFeedback);
       emit?.('turn.started', { conversationId: cid, role, iteration });
 
-      const result = await opencode.prompt(sessionId, role, prompt);
-
-      // Persistir el turno como mensaje.
-      await repos.addMessage({
-        conversationId: cid,
-        fromInstance: role,
-        toInstances: [],
-        type: role === 'validator' ? 'review' : 'result',
-        content: result.text,
-        signal: result.signal,
-        artifacts: [],
-        tokensIn: result.tokensIn,
-        tokensOut: result.tokensOut,
-        costEstimate: result.cost,
-      });
-      emit?.('message.created', {
-        conversationId: cid,
-        role,
-        signal: result.signal,
-        cost: result.cost,
-      });
+      // Etapa Dev con posible paralelismo; el resto, turno único.
+      const result =
+        role === 'dev' && conversation.parallelDev > 1
+          ? await this.runDevStageParallel(conversation, sessions, context, lastValidatorFeedback)
+          : await this.runSingleTurn(conversation, role, sessions.get(role)!, context, lastValidatorFeedback);
 
       if (result.error) {
         await repos.setConversationStatus(cid, 'failed');
@@ -116,6 +111,123 @@ export class PipelineStrategy {
       status: 'paused',
       reason: 'maxIterations alcanzado',
     });
+  }
+
+  /** Ejecuta un turno simple (un agente, una sesión) y persiste el mensaje. */
+  private async runSingleTurn(
+    conversation: Conversation,
+    role: AgentRole,
+    sessionId: string,
+    context: string,
+    feedback: string,
+  ): Promise<TurnResult> {
+    const { opencode, repos, emit } = this.deps;
+    const prompt = this.buildPrompt(role, context, feedback);
+    const result = await opencode.prompt(sessionId, role, prompt);
+
+    await repos.addMessage({
+      conversationId: conversation.id,
+      fromInstance: role,
+      toInstances: [],
+      type: role === 'validator' ? 'review' : 'result',
+      content: result.text,
+      signal: result.signal,
+      artifacts: [],
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+      costEstimate: result.cost,
+    });
+    emit?.('message.created', {
+      conversationId: conversation.id,
+      role,
+      instance: role,
+      signal: result.signal,
+      cost: result.cost,
+    });
+    return result;
+  }
+
+  /**
+   * Etapa Dev PARALELA (PLAN §4.5): reparte el trabajo entre N instancias
+   * (dev#1..devN) que corren en paralelo, limitadas por maxParallel, y junta
+   * sus resultados. Cada instancia persiste su propio mensaje (from = dev#i).
+   * La señal agregada es DONE si todas terminan (DONE/SKIP) sin BLOCKED.
+   */
+  private async runDevStageParallel(
+    conversation: Conversation,
+    _sessions: Map<AgentRole, string>,
+    context: string,
+    feedback: string,
+  ): Promise<TurnResult> {
+    const { opencode, repos, emit } = this.deps;
+    const n = this.devInstances.length;
+    const limit = Math.max(1, Math.min(conversation.maxParallel, n));
+
+    // Prompt por instancia: cada Dev toma la subtarea i de n (auto-reparto).
+    const makePrompt = (idx: number): string => {
+      const base = feedback
+        ? `${context}\n---\nEl Validador pidió cambios:\n${feedback}\n`
+        : `${context}\n`;
+      return (
+        `${base}\n---\n` +
+        `Sois ${n} desarrolladores trabajando EN PARALELO. Eres **dev#${idx + 1}** de ${n}.\n` +
+        `Divide mentalmente el trabajo en ${n} partes coherentes y ocúpate SOLO de la parte ${idx + 1}.\n` +
+        `Coordínate por convención (no te pises con otras partes); escribe solo los ficheros de tu parte.\n` +
+        `Si tu parte no requiere trabajo, responde [SKIP].`
+      );
+    };
+
+    // Ejecuta con límite de concurrencia (pool simple).
+    const results: TurnResult[] = new Array(n);
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      while (next < n) {
+        const i = next++;
+        const inst = this.devInstances[i];
+        emit?.('turn.started', { conversationId: conversation.id, role: 'dev', instance: inst.label });
+        const r = await opencode.prompt(inst.sessionId, 'dev', makePrompt(i));
+        results[i] = r;
+        await repos.addMessage({
+          conversationId: conversation.id,
+          fromInstance: inst.label,
+          toInstances: [],
+          type: 'result',
+          content: r.text,
+          signal: r.signal,
+          artifacts: [],
+          tokensIn: r.tokensIn,
+          tokensOut: r.tokensOut,
+          costEstimate: r.cost,
+        });
+        emit?.('message.created', {
+          conversationId: conversation.id,
+          role: 'dev',
+          instance: inst.label,
+          signal: r.signal,
+          cost: r.cost,
+        });
+      }
+    };
+    await Promise.all(Array.from({ length: limit }, () => worker()));
+
+    // Agregar resultados. Tolerante a fallos: si alguna instancia da error pero
+    // al menos una produjo trabajo, continuamos (no tumbamos la conversación).
+    const errored = results.filter((r) => r.error);
+    const allErrored = errored.length === results.length;
+    const anyBlocked = results.some((r) => r.signal === 'BLOCKED');
+    const allSkip = results.every((r) => r.signal === 'SKIP');
+    const aggregatedText = results
+      .map((r, i) => `### dev#${i + 1}\n${r.error ? `(error: ${r.error})` : r.text}`)
+      .join('\n\n');
+
+    return {
+      text: aggregatedText,
+      signal: anyBlocked ? 'BLOCKED' : allSkip ? 'SKIP' : 'DONE',
+      tokensIn: results.reduce((a, r) => a + r.tokensIn, 0),
+      tokensOut: results.reduce((a, r) => a + r.tokensOut, 0),
+      cost: results.reduce((a, r) => a + r.cost, 0),
+      error: allErrored ? (errored[0]?.error ?? 'todas las instancias Dev fallaron') : null,
+    };
   }
 
   /** Construye el prompt de una etapa a partir del contexto acumulado. */

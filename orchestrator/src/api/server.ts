@@ -50,6 +50,8 @@ export function buildApi(deps: ApiDeps) {
       goal?: string;
       strategy?: string;
       maxIterations?: number;
+      parallelDev?: number;
+      maxParallel?: number;
     };
     if (!body.goal) return reply.code(400).send({ error: 'goal requerido' });
     return repos.createConversation(
@@ -58,6 +60,8 @@ export function buildApi(deps: ApiDeps) {
       body.goal,
       body.strategy ?? 'pipeline',
       body.maxIterations ?? 10,
+      body.parallelDev ?? 1,
+      body.maxParallel ?? 2,
     );
   });
 

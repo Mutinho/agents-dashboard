@@ -54,12 +54,14 @@ export class Repos {
     goal: string,
     strategy: string,
     maxIterations: number,
+    parallelDev = 1,
+    maxParallel = 2,
   ): Promise<Conversation> {
     const cid = id('conv');
     const { rows } = await this.pool.query(
-      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [cid, workspaceId, title, goal, strategy, maxIterations],
+      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations, parallel_dev, max_parallel)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [cid, workspaceId, title, goal, strategy, maxIterations, parallelDev, maxParallel],
     );
     return this.mapConversation(rows[0]);
   }
@@ -187,6 +189,8 @@ export class Repos {
     strategy: r.strategy,
     status: r.status,
     maxIterations: r.max_iterations,
+    parallelDev: r.parallel_dev ?? 1,
+    maxParallel: r.max_parallel ?? 2,
     createdAt: r.created_at?.toISOString?.() ?? String(r.created_at),
     finishedAt: r.finished_at?.toISOString?.() ?? null,
   });

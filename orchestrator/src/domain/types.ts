@@ -67,6 +67,10 @@ export interface Conversation {
   strategy: Strategy;
   status: ConversationStatus;
   maxIterations: number;
+  /** Nº de instancias del rol Dev a ejecutar en paralelo (1 = secuencial). */
+  parallelDev: number;
+  /** Límite de concurrencia real (tope de instancias simultáneas). */
+  maxParallel: number;
   createdAt: string;
   finishedAt: string | null;
 }
