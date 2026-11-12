@@ -32,10 +32,10 @@ export async function seedProfiles(repos: Repos): Promise<void> {
     role: 'dev',
     name: 'Developer',
     description: 'Implementa las historias en el workspace, escribe y ejecuta tests.',
-    defaultModel: MODEL,
+    defaultModel: 'openrouter/minimax/minimax-m3',
     skills: ['webapp-testing'],
     hooks: [],
-    permissions: { edit: 'allow', bash: 'allow', webfetch: 'allow' },
+    permissions: { edit: 'allow', bash: 'deny', webfetch: 'allow' },
   });
 
   await repos.upsertProfile({
@@ -46,6 +46,6 @@ export async function seedProfiles(repos: Repos): Promise<void> {
     defaultModel: MODEL,
     skills: ['web-design-guidelines', 'webapp-testing'],
     hooks: [],
-    permissions: { edit: 'deny', bash: 'allow', webfetch: 'allow' },
+    permissions: { edit: 'deny', bash: 'deny', webfetch: 'allow' },
   });
 }

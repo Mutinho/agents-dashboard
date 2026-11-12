@@ -10,6 +10,9 @@
       "models": {
         "deepseek/deepseek-v4.1-flash-1017": {
           "name": "DeepSeek V4.1 Flash 1017"
+        },
+        "minimax/minimax-m3": {
+          "name": "MiniMax M3"
         }
       }
     }

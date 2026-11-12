@@ -25,11 +25,28 @@ No es un fallo de infraestructura (lo verificamos: sin procesos colgados, sin er
 > Estas mitigaciones hacen el sistema **robusto** ante el problema, pero la forma
 > correcta de **resolverlo** es asignar al rol Dev un modelo más capaz en código.
 
+### 1.b Hallazgo posterior: la causa real era la ejecución de `bash` (no solo el modelo)
+
+Al cambiar el Dev a **MiniMax M3** (mejor agente) el fallo se hizo más frecuente, y el diagnóstico fino reveló la causa raíz verdadera:
+
+- MiniMax, por ser mejor agente, **usa más las herramientas** (lanza comandos `bash` como `ls`, `python3 --version`, ejecutar tests).
+- En **OpenCode 1.19.5 dentro del contenedor**, esas tool-calls de `bash` **quedan en estado `running` y no completan**: el turno retorna con la tool a medias y **texto final vacío** → el orquestador lo marca como error.
+- Verificado: el comando en sí funciona si se lanza a mano en el contenedor (`docker exec`), pero la **tool de OpenCode** no cierra. Es un problema de la ejecución de tools de esa versión, no del shell ni del modelo.
+- DeepSeek Flash lo "escondía" porque usaba `bash` mucho menos.
+
+**Decisión estable adoptada:** **todos los agentes con `bash: deny`**. El Dev escribe código (`edit: allow`) y el Validador hace **revisión estática** (lee y razona, sin ejecutar). Verificado E2E: con MiniMax + `bash: deny`, la conversación FizzBuzz terminó en `done` y el fichero generado funciona. Coste $0.004.
+
+> Trade-off: se pierde la auto-ejecución de tests por los agentes. Para proyectos
+> personales es un intercambio razonable (fiabilidad total a cambio de validar el
+> código tú o en un paso aparte). Si en el futuro se quiere `bash` de nuevo, hay
+> que resolver antes la ejecución de tools de OpenCode (actualizar versión o
+> investigar el cuelgue) — ver sección 5.
+
 ---
 
 ## 2. Qué buscamos en un modelo para el rol Dev
 
-1. **Tool-calling fiable** en loops largos (escribir ficheros, ejecutar comandos, iterar).
+1. **Tool-calling fiable** en loops largos (escribir ficheros, iterar).
 2. **Buen rendimiento en benchmarks de agente de código** (SWE-Bench, Terminal-Bench, DeepSWE).
 3. **Coste contenido** — objetivo: mantenerse en precios "flash/mini" y no dispararse.
 4. Disponibilidad en **OpenRouter** (es nuestro gateway).
