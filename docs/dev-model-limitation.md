@@ -50,11 +50,11 @@ en openrouter.ai antes de fijar nada.
 
 | Modelo (OpenRouter) | Precio in / out aprox. | Por qué encaja |
 |---------------------|------------------------|----------------|
-| **`openrouter/openai/gpt-6-luna`** ⭐ | **$0.10 / $0.50** (cache read $0.01) | **Primera opción.** El más barato en output de los capaces. GPT-6 (sep-2026), contexto 1.1M, tool-calling OpenAI, pensado para tareas agénticas y —a mayor reasoning effort— ingeniería de software. Vibe Code Bench v1.1 = 81.6%. Disponible con EU in-region routing (útil con red corporativa). |
+| **`openrouter/minimax/minimax-m3`** ⭐ | **$0.075 / $0.30** (ruta más barata; media del slug ~$0.23 / $0.96) | **Mejor perfil agéntico para el Dev.** Diseñado para "sustained, multi-step tasks" (no single-turn), tool use, contexto 1M. Benchmarks de agente fuertes: **Terminal-Bench 2.1 = 65.2%** (muy por encima de gpt-6-luna en terminal), Coding Index 58.6, y Elos altos en Design Arena Full-Stack/Webapps/Mobile. Es el que mejor ataca la causa raíz (fallo en loops de agente de código). |
+| **`openrouter/openai/gpt-6-luna`** | $0.10 / $0.50 (cache read $0.01) | GPT-6 (sep-2026), contexto 1.1M, tool-calling OpenAI, Vibe Code Bench 81.6%, EU in-region routing. Muy barato y capaz, pero **Terminal-Bench bajo** → menos fiable en loops largos de terminal que MiniMax. |
 | **`openrouter/z-ai/glm-5.3-flash`** (o GLM-flash vigente) | ~$0.15 / ~$0.50 | Alternativa open-weight: fuerte en DeepSWE/Terminal-Bench, contexto enorme. |
-| **`openrouter/minimax/minimax-m3`** | ~$0.30 / ~$1.20 | Open-weight **diseñado para ejecución de agentes** (buen MCP/tool use). |
 
-> Matiz honesto sobre `gpt-6-luna`: su **Terminal-Bench 4.0 es bajo (~9-14%)**, así que para loops de terminal muy largos/difíciles no es frontier. Para el rol Dev de proyectos personales (coste primero, tareas acotadas) es la mejor relación calidad/precio; para tareas de código realmente complejas, escala al nivel siguiente en esa conversación concreta.
+> **Nota sobre precios en OpenRouter**: un mismo modelo lo sirven varios providers a precios distintos. La ruta **Floor** (más barata) de MiniMax M3 ronda **$0.075/$0.30**, mientras que el **precio medio del slug** es ~$0.23/$0.96. Fija la preferencia de routing (Balanced/Floor) según tu prioridad coste vs. velocidad, y **confirma el precio efectivo** en el panel.
 
 ### Si el Dev necesita más potencia (tareas de código complejas)
 
@@ -74,7 +74,7 @@ en openrouter.ai antes de fijar nada.
 
 ## 4. Recomendación concreta
 
-1. **Habilita en OpenRouter** uno de: `openai/gpt-6-luna` (1ª opción, $0.10/$0.50) o `glm-5.3-flash`.
+1. **Habilita en OpenRouter** uno de: `minimax/minimax-m3` (1ª opción, mejor perfil agéntico, ~$0.075/$0.30 ruta Floor) o `openai/gpt-6-luna` ($0.10/$0.50).
 2. **Asigna ese modelo solo al rol Dev** (y opcionalmente al Validador cuando ejecute tests). El diseño ya lo permite: el campo `model` es por `AgentProfile`, editable sin tocar código ni arquitectura.
 3. **Deja PO/UX/Validador en DeepSeek Flash** (baratos y suficientes para texto/razonamiento).
 4. Revisa el gasto con el límite de crédito del panel de OpenRouter y las métricas de coste del dashboard (Fase 5).
