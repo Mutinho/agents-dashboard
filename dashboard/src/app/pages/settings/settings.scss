@@ -1,0 +1,14 @@
+.page-head { margin-bottom: 20px; }
+.page-head h1 { margin: 0 0 4px; font-size: 24px; }
+h2 { font-size: 15px; margin: 0 0 12px; }
+.card + .card { margin-top: 16px; }
+
+.row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border); }
+.row:last-child { border-bottom: none; }
+b.ok { color: var(--signal-done); }
+b { color: var(--color-destructive); }
+
+table { width: 100%; border-collapse: collapse; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+.model { color: var(--color-secondary); }
+.note { font-size: 12px; margin-top: 12px; }

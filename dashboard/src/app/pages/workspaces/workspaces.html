@@ -1,0 +1,29 @@
+<header class="page-head">
+  <h1>Workspaces</h1>
+  <p class="muted">Espacios/proyectos de trabajo de los agentes</p>
+</header>
+
+<section class="card create">
+  <h2>Nuevo workspace</h2>
+  <div class="form-row">
+    <input [(ngModel)]="name" placeholder="Nombre del proyecto" />
+    <input [(ngModel)]="description" placeholder="Descripción (opcional)" />
+    <button class="btn btn-primary" (click)="create()" [disabled]="creating() || !name.trim()">
+      {{ creating() ? 'Creando…' : 'Crear' }}
+    </button>
+  </div>
+</section>
+
+@if (items().length === 0) {
+  <p class="muted">Aún no hay workspaces. Crea el primero arriba.</p>
+} @else {
+  <div class="grid">
+    @for (ws of items(); track ws.id) {
+      <a class="card ws" [routerLink]="['/workspaces', ws.id]">
+        <h2>{{ ws.name }}</h2>
+        @if (ws.description) { <p class="desc">{{ ws.description }}</p> }
+        <code class="mono path">{{ ws.path }}</code>
+      </a>
+    }
+  </div>
+}

@@ -118,3 +118,18 @@ services:
       opencode:
         condition: service_healthy
     profiles: ["full"]
+
+  # ---------------------------------------------------------------------------
+  # Dashboard: UI Angular servida por nginx, con proxy a /api y /ws.
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: ad-dashboard
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-4200}:80"
+    depends_on:
+      - orchestrator
+    profiles: ["full"]

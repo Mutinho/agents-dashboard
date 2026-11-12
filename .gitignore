@@ -49,3 +49,6 @@ Thumbs.db
 
 # --- CA corporativa local (no versionar; depende de tu red) ---
 config/opencode/certs/*.crt
+
+# CA corporativa del build del dashboard (no versionar)
+dashboard/certs/*.crt

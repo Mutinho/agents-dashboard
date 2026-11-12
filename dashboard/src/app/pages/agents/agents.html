@@ -1,0 +1,56 @@
+<header class="page-head">
+  <h1>Agentes</h1>
+  <p class="muted">Perfiles del equipo multi-agente: skills, hooks, permisos y modelo</p>
+</header>
+
+@if (loading()) {
+  <p class="muted">Cargando…</p>
+} @else {
+  <div class="grid">
+    @for (a of agents(); track a.key) {
+      <article class="card agent">
+        <div class="agent-head">
+          <span class="role-dot" [style.background]="roleColor(a.role)"></span>
+          <div>
+            <h2>{{ a.name }}</h2>
+            <span class="muted mono">{{ a.key }}</span>
+          </div>
+        </div>
+
+        <p class="desc">{{ a.description }}</p>
+
+        <div class="row">
+          <span class="label muted">Modelo</span>
+          <code class="mono model">{{ a.defaultModel }}</code>
+        </div>
+
+        <div class="row">
+          <span class="label muted">Skills</span>
+          <div class="tags">
+            @for (s of a.skills; track s) { <span class="tag skill">{{ s }}</span> }
+            @if (a.skills.length === 0) { <span class="muted">—</span> }
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="label muted">Hooks</span>
+          <div class="tags">
+            @for (h of a.hooks; track h) { <span class="tag hook">{{ h }}</span> }
+            @if (a.hooks.length === 0) { <span class="muted">ninguno</span> }
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="label muted">Permisos</span>
+          <div class="tags">
+            @for (p of permissionEntries(a.permissions); track p[0]) {
+              <span class="tag perm" [class.deny]="p[1] === 'deny'" [class.allow]="p[1] === 'allow'">
+                {{ p[0] }}: {{ p[1] }}
+              </span>
+            }
+          </div>
+        </div>
+      </article>
+    }
+  </div>
+}

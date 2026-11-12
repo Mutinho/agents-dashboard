@@ -1,0 +1,32 @@
+.page-head { margin-bottom: 20px; }
+.page-head h1 { margin: 0 0 4px; font-size: 24px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.agent { display: flex; flex-direction: column; gap: 12px; }
+.agent-head { display: flex; align-items: center; gap: 12px; }
+.agent-head h2 { margin: 0; font-size: 16px; }
+.role-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+
+.desc { margin: 0; color: var(--color-muted-foreground); font-size: 13px; }
+
+.row { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.model { font-size: 12px; color: var(--color-secondary); word-break: break-all; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-muted);
+}
+.tag.skill { border-color: var(--role-dev); color: #93c5fd; }
+.tag.hook { border-color: var(--role-ux); color: #f9a8d4; }
+.tag.perm.allow { border-color: var(--signal-done); color: #86efac; }
+.tag.perm.deny { border-color: var(--signal-blocked); color: #fca5a5; }

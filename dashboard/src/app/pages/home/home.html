@@ -1,0 +1,45 @@
+<header class="page-head">
+  <h1>Panel de control</h1>
+  <p class="muted">Estado del sistema de agentes autónomos</p>
+</header>
+
+<section class="metrics">
+  <div class="card metric">
+    <span class="metric-label muted">OpenCode</span>
+    <span class="metric-value mono">{{ opencodeVersion() }}</span>
+  </div>
+  <div class="card metric">
+    <span class="metric-label muted">Coste acumulado</span>
+    <span class="metric-value mono">{{ usd(totalCost()) }}</span>
+  </div>
+  <div class="card metric">
+    <span class="metric-label muted">Conversaciones activas</span>
+    <span class="metric-value mono">{{ active().length }}</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Conversaciones en ejecución</h2>
+  @if (active().length === 0) {
+    <p class="muted">No hay conversaciones activas ahora mismo.</p>
+  } @else {
+    <ul class="conv-list">
+      @for (item of active(); track item.conv.id) {
+        <li>
+          <a [routerLink]="['/conversations', item.conv.id]">
+            <span class="badge" [style.background]="statusColor(item.conv.status)">{{ item.conv.status }}</span>
+            <span>{{ item.conv.title }}</span>
+            <span class="muted">· {{ item.ws.name }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+@if (lastEvent(); as ev) {
+  <section class="card">
+    <h2>Último evento</h2>
+    <code class="event mono">{{ ev.event }} · {{ ev.payload | json }}</code>
+  </section>
+}

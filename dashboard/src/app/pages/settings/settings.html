@@ -1,0 +1,27 @@
+<header class="page-head">
+  <h1>Ajustes</h1>
+  <p class="muted">Estado del sistema y configuración de modelos</p>
+</header>
+
+<section class="card">
+  <h2>Salud</h2>
+  @if (health(); as h) {
+    <div class="row"><span class="muted">Orquestador</span> <b [class.ok]="h.ok">{{ h.ok ? 'OK' : 'caído' }}</b></div>
+    <div class="row"><span class="muted">OpenCode</span> <b [class.ok]="h.opencode.healthy">{{ h.opencode.healthy ? 'OK' : 'caído' }}</b></div>
+    <div class="row"><span class="muted">Versión OpenCode</span> <code class="mono">{{ h.opencode.version }}</code></div>
+  } @else {
+    <p class="muted">No se pudo contactar con el orquestador.</p>
+  }
+</section>
+
+<section class="card">
+  <h2>Modelos por rol</h2>
+  <table>
+    <tbody>
+      @for (m of models(); track m.key) {
+        <tr><td class="mono">{{ m.key }}</td><td class="mono model">{{ m.model }}</td></tr>
+      }
+    </tbody>
+  </table>
+  <p class="muted note">El modelo se define por agente en <code>config/opencode/agents/*.md</code>. Para control de gasto, fija también un límite en el panel de OpenRouter.</p>
+</section>

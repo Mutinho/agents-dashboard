@@ -1,0 +1,112 @@
+/* ===========================================================================
+   Tema del dashboard de agentes.
+   Dirección de diseño generada con la skill ui-ux-pro-max:
+   estilo "Dark Mode (OLED)" + patrón "Real-Time / Operations", data-dense.
+   Paleta: verde operacional + rojo incidente + midnight. Tipografía Fira.
+   =========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Colores (tokens de ui-ux-pro-max) */
+  --color-primary: #16a34a;
+  --color-on-primary: #000000;
+  --color-secondary: #22c55e;
+  --color-accent: #dc2626;
+  --color-on-accent: #ffffff;
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-card: #111827;
+  --color-card-foreground: #f8fafc;
+  --color-muted: #1e293b;
+  --color-muted-foreground: #cbd5e1;
+  --color-border: #334155;
+  --color-destructive: #dc2626;
+  --color-ring: #16a34a;
+
+  /* Estados de señales de agente */
+  --signal-done: #16a34a;
+  --signal-skip: #64748b;
+  --signal-changes: #f59e0b;
+  --signal-approved: #22c55e;
+  --signal-blocked: #dc2626;
+
+  /* Color por rol de agente */
+  --role-po: #8b5cf6;
+  --role-ux: #ec4899;
+  --role-dev: #3b82f6;
+  --role-validator: #f59e0b;
+
+  --font-sans: 'Fira Sans', system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
+
+  --radius: 10px;
+  --space: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a { color: var(--color-secondary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, .mono { font-family: var(--font-mono); }
+
+/* Scrollbar discreta y oscura */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-muted); border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Utilidades reutilizables */
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: calc(var(--space) * 2);
+}
+
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.btn:hover { border-color: var(--color-primary); }
+.btn:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.btn-primary { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+.btn-primary:hover { background: var(--color-secondary); }
+.btn-danger { background: var(--color-destructive); color: var(--color-on-accent); border-color: var(--color-destructive); }
+
+input, textarea, select {
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--color-ring);
+}
+
+.muted { color: var(--color-muted-foreground); }
+
+/* Respeta reduced-motion (checklist de la skill) */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

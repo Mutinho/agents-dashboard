@@ -538,13 +538,17 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 > **Unidad USD** (coherente con OpenRouter; no se hace conversión de moneda).
 > **Verificado**: conversación con `budgetUsd=0.001` pasó a `paused` tras el primer turno (gastó $0.0023); eventos `cost.update` → `budget.exceeded` → `conversation.status(paused)` emitidos en orden. Caso sin límite (`budgetUsd=0`) completa normal con `budgetRemainingUsd=null`. Métricas agregadas (coste/tokens) correctas por conversación y por workspace.
 
-### Fase 6 — Dashboard Angular (v1)
-- [ ] Scaffold Angular standalone + signals; `nginx` + Dockerfile.
-- [ ] Servicios HTTP + RealtimeService (WS).
-- [ ] Pantalla **Agentes** (lista + detalle con skills/hooks/descripción + alta/edición).
-- [ ] Pantalla **Workspaces** (lista + alta + conversaciones).
-- [ ] Pantalla **Conversación** (hilo multi-agente en vivo, participantes, artefactos, controles).
-- [ ] Pantalla **Home** (salud + coste) y **Ajustes** (modelos/presupuesto).
+### Fase 6 — Dashboard Angular (v1) ✅ COMPLETA (verificada E2E)
+- [x] Scaffold Angular 22 standalone + signals; `nginx` + Dockerfile multi-stage.
+- [x] Servicios HTTP (`ApiService`) + `RealtimeService` (WS con signals + reconexión).
+- [x] Pantalla **Agentes** (lista + detalle con skills/hooks/permisos/modelo).
+- [x] Pantalla **Workspaces** (lista + alta) + **detalle** (crear conversación con goal/budget/parallelDev).
+- [x] Pantalla **Conversación** (hilo multi-agente en vivo por rol/color, señales, métricas, start/stop; `effect` sobre `lastEvent`).
+- [x] Pantalla **Home** (salud + coste + conversaciones activas) y **Ajustes** (salud + modelos por rol).
+
+> **Diseño**: tema Dark/OLED data-dense derivado de la skill `ui-ux-pro-max` (paleta verde operacional + rojo incidente, tipografía Fira), convenciones Angular 22 (standalone, signals, `@if/@for`, lazy routes).
+> **Verificado**: `docker compose --profile full up` levanta los 5 servicios; dashboard en `http://localhost:4200` sirve la app; proxy nginx `/api` (REST) y `/ws` (WebSocket → HTTP 101). E2E desde la UI: crear workspace → conversación con presupuesto → iniciar → pipeline a `done` (4 mensajes, $0.0028).
+> **Nota build**: `optimization.fonts.inline=false` (el proxy corporativo bloquea la descarga de Google Fonts en build; se cargan en runtime). CA Zscaler opcional también en el build del dashboard.
 
 ### Fase 7 — Integración y pruebas end-to-end
 - [ ] `docker compose up` levanta todo y el dashboard abre en `http://localhost:4200`.

@@ -1,0 +1,55 @@
+@if (ws(); as w) {
+  <header class="page-head">
+    <a routerLink="/workspaces" class="muted back">← Workspaces</a>
+    <h1>{{ w.name }}</h1>
+    <code class="mono muted">{{ w.path }}</code>
+  </header>
+
+  <section class="card create">
+    <h2>Nueva conversación multi-agente</h2>
+    <label>Objetivo</label>
+    <textarea [(ngModel)]="goal" rows="3" placeholder="Describe qué debe construir el equipo de agentes…"></textarea>
+    <div class="form-grid">
+      <div>
+        <label>Título</label>
+        <input [(ngModel)]="title" placeholder="Opcional" />
+      </div>
+      <div>
+        <label>Presupuesto (USD, 0 = sin límite)</label>
+        <input type="number" step="0.001" min="0" [(ngModel)]="budgetUsd" />
+      </div>
+      <div>
+        <label>Devs en paralelo</label>
+        <input type="number" min="1" max="4" [(ngModel)]="parallelDev" />
+      </div>
+      <div>
+        <label>Máx. iteraciones</label>
+        <input type="number" min="1" max="30" [(ngModel)]="maxIterations" />
+      </div>
+    </div>
+    <button class="btn btn-primary" (click)="create()" [disabled]="creating() || !goal.trim()">
+      {{ creating() ? 'Creando…' : 'Crear y abrir' }}
+    </button>
+  </section>
+
+  <section class="card">
+    <h2>Conversaciones</h2>
+    @if (conversations().length === 0) {
+      <p class="muted">Sin conversaciones todavía.</p>
+    } @else {
+      <ul class="conv-list">
+        @for (c of conversations(); track c.id) {
+          <li>
+            <a [routerLink]="['/conversations', c.id]">
+              <span class="badge" [style.background]="statusColor(c.status)">{{ c.status }}</span>
+              <span class="title">{{ c.title }}</span>
+              <span class="muted goal">{{ c.goal }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+} @else {
+  <p class="muted">Cargando…</p>
+}
