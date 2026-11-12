@@ -1,0 +1,46 @@
+# --- Secretos y entorno ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# --- Datos y estado en runtime (no versionar) ---
+data/
+workspaces/*
+!workspaces/.gitkeep
+
+# --- OpenCode: credenciales/estado local ---
+.opencode/
+config/opencode/auth.json
+
+# --- Node / TypeScript (orchestrator) ---
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Angular (dashboard) ---
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.angular/
+dashboard/coverage/
+
+# --- Postgres volumen local (si se monta dentro del repo) ---
+data/db/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Sistema / editores ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
