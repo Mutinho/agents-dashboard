@@ -283,9 +283,23 @@ El **UX** usará típicamente `[SKIP]` cuando no haya interfaz que diseñar.)
 
 ### 5.3 Skills
 
-- Se usan los **Agent Skills** de OpenCode para capacidades reutilizables (p.ej. una skill de "diseño de UI moderno", skills de testing, etc.).
-- En la DB guardamos `skills_json` por profile para **mostrarlas en el dashboard** y permitir activarlas/desactivarlas.
-- Skills de interés inicial: diseño frontend/UI, testing, generación de documentación.
+**Modelo real de OpenCode v2 (verificado):** las skills se descubren desde `~/.config/opencode/skills/<id>/SKILL.md` y se ofrecen al modelo mediante **una única tool `skill`**. El modelo elige qué skill cargar según su `description`. **No existe un allowlist de skills por agente** en el frontmatter (el campo `tools: {skills_*}` no aplica). El control nativo es: deshabilitar una skill globalmente (`metadata.opencode/autoinvoke: false` o `disable-model-invocation: true`) o vía `permission` sobre la tool `skill`.
+
+**Consecuencia de diseño:** la asignación "skill → rol" se consigue por dos vías:
+1. **System prompt del agente**: cada agente indica explícitamente qué skill(s) debe usar (efectivo; el modelo lo respeta).
+2. **Metadato en nuestra DB/dashboard**: `skills_json` por `AgentProfile` es la fuente de verdad para **mostrar** las skills de cada agente en el dashboard (tu requisito), independientemente de que OpenCode las exponga todas.
+
+**Skills instaladas** en `config/opencode/skills/` (montadas en el contenedor, verificadas en `GET /skill`), todas de fuente oficial salvo la local:
+
+| Skill | Fuente | Rol asignado (vía prompt) |
+|-------|--------|---------------------------|
+| `doc-coauthoring` | Anthropic (oficial) | PO |
+| `ui-ux-pro-max` | local (Kiro) — completa, con motor Python (soporta stack Angular) | UX |
+| `frontend-design` | Anthropic (oficial) | UX |
+| `webapp-testing` | Anthropic (oficial) | Dev, Validador |
+| `web-design-guidelines` | Vercel (oficial) | Validador |
+
+> `ui-ux-pro-max` trae scripts Python (motor BM25 sobre datos locales). Se auditó (sin red/exec/subprocess peligrosos) y la imagen `opencode` incluye `python3`. Verificado funcionando dentro del contenedor (búsqueda stack `angular`) y en una sesión real del agente UX (invocó `tool:skill` y generó un sistema de diseño).
 
 ### 5.4 Hooks
 

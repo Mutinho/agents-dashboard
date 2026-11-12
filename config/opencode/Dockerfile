@@ -2,9 +2,10 @@
 # Motor de agentes conectado a OpenRouter (DeepSeek).
 FROM node:22-slim
 
-# Dependencias mínimas: git (OpenCode lo usa para VCS), ca-certificates, curl (healthcheck)
+# Dependencias mínimas: git (OpenCode lo usa para VCS), ca-certificates, curl (healthcheck),
+# python3 (lo requiere la skill ui-ux-pro-max: motor de búsqueda BM25 sobre datos locales).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates curl \
+    && apt-get install -y --no-install-recommends git ca-certificates curl python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala OpenCode globalmente

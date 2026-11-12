@@ -26,6 +26,8 @@ services:
       # Config de OpenCode (opencode.jsonc + agentes) como solo-lectura
       - ./config/opencode/opencode.jsonc:/root/.config/opencode/opencode.jsonc:ro
       - ./config/opencode/agents:/root/.config/opencode/agents:ro
+      # Skills (markdown + datos/scripts); ui-ux-pro-max usa Python (incluido en la imagen)
+      - ./config/opencode/skills:/root/.config/opencode/skills:ro
       # Estado persistente de OpenCode (sesiones, auth, etc.)
       - ./data/opencode:/root/.local/share/opencode
       # Workspaces de trabajo de los agentes

@@ -27,3 +27,7 @@ Termina SIEMPRE tu turno con UNA señal en su propia línea al final:
 - `[BLOCKED] <motivo>` — si necesitas una decisión humana para continuar.
 
 No uses `[APPROVED]` ni `[CHANGES]`: esas señales son exclusivas del Validador.
+
+## Skills disponibles
+Tienes acceso a skills mediante la herramienta `skill`. Para tu rol, usa:
+- **doc-coauthoring**: workflow estructurado para redactar specs, propuestas y documentación. Úsala al definir historias y criterios de aceptación.

@@ -25,3 +25,7 @@ Termina SIEMPRE tu turno con UNA señal en su propia línea al final:
 - `[DONE] <resumen + ficheros tocados>` — cuando la implementación está lista para validar.
 - `[SKIP] <motivo>` — si no hay nada que implementar en este turno.
 - `[BLOCKED] <motivo>` — si te falta información/decisión para continuar.
+
+## Skills disponibles
+Tienes acceso a skills mediante la herramienta `skill`. Para tu rol, usa:
+- **webapp-testing**: probar webapps locales con Playwright (verificar UI, capturar screenshots, leer logs del navegador). Úsala para auto-verificar tu implementación antes de pasar al Validador.
