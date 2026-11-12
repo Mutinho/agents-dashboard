@@ -252,19 +252,17 @@ Cada agente es un fichero Markdown en `./config/opencode/agents/` (montado en el
 
 ### 5.2 Ejemplo de definición (PO)
 
-`./config/opencode/agents/po.md`
+`./config/opencode/agents/po.md` (frontmatter real verificado en OpenCode 1.19.5)
 ```markdown
 ---
 description: Product Owner. Convierte objetivos en requisitos claros y decide cuándo está terminado.
 mode: subagent
 model: openrouter/deepseek/deepseek-v4.1-flash-1017
-permissions:
-  - action: edit
-    resource: "*"
-    effect: deny
-  - action: shell
-    resource: "*"
-    effect: deny
+temperature: 0.3
+permission:
+  edit: deny
+  bash: deny
+  webfetch: allow
 ---
 Eres el Product Owner del equipo. Tu trabajo:
 1. Clarificar el objetivo y descomponerlo en historias con criterios de aceptación.
@@ -276,6 +274,8 @@ Termina SIEMPRE tu turno con una señal de control en una línea propia:
 - `[BLOCKED] <motivo>` si necesitas intervención humana.
 Responde en español, en Markdown, conciso y accionable.
 ```
+
+> El formato de `permission` es un mapa `accion: allow|ask|deny` (acciones: `edit`, `bash`, `webfetch`, ...), igual que en `opencode.jsonc`. Los cuatro agentes se cargan y se listan en `GET /agent`.
 
 (Análogo para `dev.md`, `ux.md`, `validator.md`, cambiando prompt/permissions/model.
 El **Validador** además usa `[APPROVED]` (parada con éxito) o `[CHANGES] <lista>` (volver a Dev).
@@ -482,9 +482,9 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 - [ ] Prueba manual: una sesión simple que responda usando `openrouter/deepseek/deepseek-v4.1-flash-1017`.
 
 ### Fase 2 — Definición de agentes
-- [ ] Crear `po.md`, `dev.md`, `ux.md`, `validator.md` con prompts, modelos y permisos.
-- [ ] Probar cada agente de forma aislada vía SDK (crear sesión, enviar prompt, leer respuesta).
-- [ ] Definir skills iniciales y hooks básicos; documentarlos.
+- [x] Crear `po.md`, `dev.md`, `ux.md`, `validator.md` con prompts, modelos y permisos. **(hecho; verificado en `GET /agent`)**
+- [x] Probar cada agente de forma aislada (sesión + prompt + respuesta). **(PO probado: responde en rol y emite `[DONE]`; auto-descartó UX correctamente)**
+- [ ] Definir skills iniciales y hooks básicos; documentarlos. **(se implementa en Fase 3, cuando el orquestador los consuma y el dashboard los muestre)**
 
 ### Fase 3 — Orquestador (núcleo)
 - [ ] Scaffold Node/TS con SDK de OpenCode.
