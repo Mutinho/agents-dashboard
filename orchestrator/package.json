@@ -1,0 +1,30 @@
+{
+  "name": "agents-dashboard-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Orquestador multi-agente sobre OpenCode: pipeline PO->UX->Dev->Validador",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "migrate": "node dist/persistence/migrate.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "1.19.5",
+    "fastify": "5.12.8",
+    "@fastify/cors": "10.0.1",
+    "pg": "8.23.1",
+    "nats": "2.29.1",
+    "ws": "8.22.2",
+    "undici": "6.21.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@types/pg": "8.11.10",
+    "@types/ws": "8.5.13",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3"
+  }
+}

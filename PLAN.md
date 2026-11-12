@@ -501,14 +501,24 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 - [ ] Definir skills iniciales y hooks básicos; documentarlos. **(se implementa en Fase 3, cuando el orquestador los consuma y el dashboard los muestre)**
 
 ### Fase 3 — Orquestador (núcleo)
-- [ ] Scaffold Node/TS con SDK de OpenCode.
-- [ ] Cliente OpenCode: crear sesión por AgentInstance, enviar prompt, consumir eventos SSE.
-- [ ] Modelo de dominio + migraciones DB (Postgres, con `jsonb` para skills/hooks/artifacts).
-- [ ] Estrategia **pipeline fijo** (PO→UX→Dev→Validador con loop) como única estrategia de v1.
-- [ ] Parser de **señales de control** (`[DONE]`, `[SKIP]`, `[CHANGES]`, `[APPROVED]`, `[BLOCKED]`) para el enrutado entre etapas.
-- [ ] Bucle de orquestación con `maxIterations` y `stopCondition = [APPROVED]`; manejo de skip y de loop de corrección.
-- [ ] Persistir conversaciones y mensajes.
-- [ ] API REST mínima (`workspaces`, `conversations`, `start/stop`, `messages`).
+### Fase 3 — Orquestador (núcleo) ✅ COMPLETA (verificada E2E)
+- [x] Scaffold Node/TS con SDK de OpenCode (`@opencode-ai/sdk@1.19.5`, Fastify, pg, ws).
+- [x] Cliente OpenCode: crear sesión por AgentInstance, enviar prompt, leer respuesta.
+- [x] Modelo de dominio + migraciones DB (Postgres, con `jsonb` para skills/hooks/artifacts).
+- [x] Estrategia **pipeline fijo** (PO→UX→Dev→Validador con loop) como única estrategia de v1.
+- [x] Parser de **señales de control** (`[DONE]`, `[SKIP]`, `[CHANGES]`, `[APPROVED]`, `[BLOCKED]`).
+- [x] Bucle de orquestación con `maxIterations` y `stopCondition = [APPROVED]`; skip + loop de corrección.
+- [x] Persistir conversaciones y mensajes.
+- [x] API REST mínima (`workspaces`, `conversations`, `start/stop`, `messages`) + WS de eventos.
+
+> **Verificado**: una conversación real terminó en `done` — PO `[DONE]`, UX `[SKIP]` (auto-descarte), Dev `[DONE]`, Validador `[APPROVED]`. Artefactos en el workspace aislado `/workspaces/<slug>`; el `csv_to_json.py` generado funciona. Coste total $0.0029.
+>
+> **Aprendizajes clave (aplicados):**
+> - El fetch nativo de Node (undici) aborta turnos largos a los ~5 min (`HeadersTimeoutError`). El cliente amplía `headersTimeout`/`bodyTimeout` a 30 min (turnos de agentes que escriben ficheros y ejecutan tests son largos).
+> - Aislamiento: el pipeline inyecta el `workspace.path` en el contexto para que los agentes trabajen solo en su directorio.
+> - En modo autónomo el permiso `bash: ask` cuelga el turno (nadie aprueba). Dev/Validador usan `bash: allow` dentro del workspace aislado.
+> - Healthcheck de opencode debe incluir basic-auth (`-u`), o marca `unhealthy` (401).
+> - Reconstruir el orchestrator con `--no-cache` (Docker cacheaba `COPY src`).
 
 ### Fase 4 — Bus de mensajes y paralelismo
 - [ ] Integrar **NATS** (contenedor `broker`) y una interfaz `MessageBus` en el orquestador.

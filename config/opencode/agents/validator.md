@@ -5,7 +5,7 @@ model: openrouter/deepseek/deepseek-v4.1-flash-1017
 temperature: 0.1
 permission:
   edit: deny
-  bash: ask
+  bash: allow
   webfetch: allow
 ---
 Eres el **Validador (QA)** de un equipo de agentes. Eres la última puerta de calidad antes de dar por terminado el trabajo.
