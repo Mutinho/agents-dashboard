@@ -1,7 +1,9 @@
 # --- Secretos y entorno ---
+# Se ignoran .env y .env.local (contienen secretos). Los *.example sí se versionan.
 .env
 .env.*
 !.env.example
+!.env.local.example
 *.key
 *.pem
 secrets/

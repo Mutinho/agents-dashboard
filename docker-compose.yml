@@ -10,6 +10,14 @@ services:
       dockerfile: Dockerfile
     container_name: ad-opencode
     restart: unless-stopped
+    # Cascada de entorno: .env (base) -> .env.local (overrides, opcional, gana).
+    # Para que .env.local pise TAMBIÉN la interpolación ${...} de este fichero,
+    # invoca compose vía `make` / `./dc.sh` (usa --env-file .env --env-file .env.local).
+    env_file:
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in .env}
       OPENCODE_SERVER_USERNAME: ${OPENCODE_SERVER_USERNAME:-opencode}
@@ -40,6 +48,11 @@ services:
     image: postgres:16
     container_name: ad-db
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-own_ia}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}

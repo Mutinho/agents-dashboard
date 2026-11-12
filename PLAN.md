@@ -418,6 +418,18 @@ POSTGRES_DB=own_ia
 
 `docker-compose.yml` (esqueleto de servicios): `opencode`, `orchestrator`, `broker` (nats), `db` (postgres), `dashboard` (nginx), todos con bind a `127.0.0.1` y los volúmenes indicados.
 
+### 8.1 Cascada de entorno: `.env` → `.env.local`
+
+Para ajustar el entorno de una máquina concreta sin tocar el `.env` base:
+
+- **`.env`**: valores base (incluye la `OPENROUTER_API_KEY`). No se versiona.
+- **`.env.local`** (opcional): overrides locales que **ganan** sobre `.env`. No se versiona.
+- **`.env.example` / `.env.local.example`**: plantillas documentadas que **sí** se versionan.
+
+La infra se levanta con el wrapper **`./dc.sh`** (o los targets de **`Makefile`**), que invoca `docker compose --env-file .env --env-file .env.local ...`. Esto garantiza que `.env.local` pise **tanto** la interpolación `${...}` del compose **como** el entorno de los contenedores (precedencia verificada). Si `.env.local` no existe, se usa solo `.env`.
+
+Comandos habituales: `make up` (solo opencode), `make up-full` (todo), `make health`, `make logs`, `make build`.
+
 ---
 
 ## 9. Control de costes (OpenRouter / tokens)
