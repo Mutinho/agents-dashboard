@@ -439,6 +439,17 @@ POSTGRES_DB=own_ia
 - `.env` y `data/` en `.gitignore`.
 - Límite de iteraciones y presupuesto para evitar bucles infinitos y gasto descontrolado.
 
+### 10.1 Portabilidad de red: proxy corporativo (Zscaler) vs equipo personal
+
+Algunos equipos corporativos usan un **proxy que intercepta TLS (MITM)** —típicamente **Zscaler**—. En ese caso `https://openrouter.ai` lo firma una CA corporativa que el contenedor no conoce, y OpenCode falla con `unable to get local issuer certificate`.
+
+Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y uno personal sin cambios de código:
+
+- La imagen `opencode` instala **cualquier `.crt`** que exista en `config/opencode/certs/` (CA raíz corporativa), vía `update-ca-certificates`, y Node la usa con `NODE_EXTRA_CA_CERTS`.
+- **Paso OPCIONAL**: si el equipo **no** tiene proxy MITM (p.ej. PC personal), la carpeta `certs/` solo contiene `.gitkeep` y el build **no instala nada** (usa CAs públicas). Funciona igual.
+- Los `*.crt` **no se versionan** (`.gitignore`): dependen de la red local, no del repo. Instrucciones en `config/opencode/certs/README.md`.
+- Verificado en ambos escenarios: build con CA corporativa (instala) y build sin ella (usa CAs públicas); ambos correctos.
+
 ---
 
 ## 11. Plan por fases (checklist ejecutable)
@@ -449,6 +460,7 @@ POSTGRES_DB=own_ia
 - [ ] Revocar la API key de Gemini que se expuso (ya no se usa).
 - [ ] Crear estructura de carpetas de `~/own_ia/` y `.gitignore`.
 - [ ] Crear `.env` a partir de `.env.example` con la `OPENROUTER_API_KEY`.
+- [ ] (**Solo si el equipo tiene proxy MITM tipo Zscaler**) copiar la CA raíz corporativa a `config/opencode/certs/*.crt`. En PC personal sin proxy, omitir este paso.
 
 ### Fase 1 — OpenCode + OpenRouter dockerizado
 - [ ] `Dockerfile`/servicio `opencode` con OpenCode CLI instalado.

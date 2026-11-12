@@ -12,11 +12,20 @@ RUN apt-get update \
 ARG OPENCODE_VERSION=latest
 RUN npm install -g opencode-ai@${OPENCODE_VERSION}
 
-# CA corporativa (proxy Zscaler MITM): el contenedor debe confiar en ella para
-# poder hacer TLS a https://openrouter.ai. Sin esto, Node/curl fallan con
-# "unable to get local issuer certificate".
-COPY certs/zscaler-corporate-root.crt /usr/local/share/ca-certificates/zscaler-corporate-root.crt
-RUN update-ca-certificates
+# CA(s) corporativas OPCIONALES (p.ej. proxy Zscaler que intercepta TLS).
+# Copia TODO el directorio certs/ e instala cualquier .crt que contenga.
+# En un equipo SIN proxy corporativo, certs/ solo tiene .gitkeep -> no instala
+# nada y el build funciona igual. En un equipo CON Zscaler, deja aquí la CA raíz
+# (ver config/opencode/certs/README.md) y se instalará automáticamente.
+COPY certs/ /tmp/corp-certs/
+RUN if ls /tmp/corp-certs/*.crt >/dev/null 2>&1; then \
+        echo "Instalando CA(s) corporativas:" && ls /tmp/corp-certs/*.crt && \
+        cp /tmp/corp-certs/*.crt /usr/local/share/ca-certificates/ && \
+        update-ca-certificates; \
+    else \
+        echo "Sin CA corporativa (certs/ vacío): se usan solo CAs públicas"; \
+    fi \
+    && rm -rf /tmp/corp-certs
 
 # Config global de OpenCode
 ENV XDG_CONFIG_HOME=/root/.config
