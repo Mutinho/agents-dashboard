@@ -7,48 +7,124 @@
         <p class="muted goal">{{ c.goal }}</p>
       </div>
       <div class="controls">
-        <span class="badge" [style.background]="statusColor(c.status)">{{ c.status }}</span>
-        <button class="btn btn-primary" (click)="start()" [disabled]="busy() || c.status === 'running'">Iniciar</button>
-        <button class="btn btn-danger" (click)="stop()" [disabled]="busy() || c.status !== 'running'">Parar</button>
+        <span class="status-pill" [style.--c]="statusColor(c.status)">
+          <span class="status-dot" [class.pulse]="isRunning()"></span>{{ c.status }}
+        </span>
+        <button class="btn btn-primary" (click)="start()" [disabled]="busy() || isRunning()">Iniciar</button>
+        <button class="btn btn-danger" (click)="stop()" [disabled]="busy() || !isRunning()">Parar</button>
       </div>
     </div>
   </header>
 
+  <!-- Barra de progreso de etapas del pipeline -->
+  <section class="stages">
+    @for (s of stages; track s; let last = $last) {
+      <div class="stage" [class]="stageState(s)">
+        <span class="stage-node" [style.--role]="roleColor(s)">
+          @if (stageState(s) === 'done') { <span class="check">✓</span> }
+          @else if (stageState(s) === 'active') { <span class="spinner"></span> }
+        </span>
+        <span class="stage-label">{{ roleLabel(s) }}</span>
+      </div>
+      @if (!last) { <span class="stage-line" [class.filled]="stageState(s) === 'done'"></span> }
+    }
+  </section>
+
   @if (metrics(); as m) {
     <section class="metrics">
       <div class="chip"><span class="muted">Mensajes</span> <b class="mono">{{ m.messages }}</b></div>
-      <div class="chip"><span class="muted">Tokens in/out</span> <b class="mono">{{ m.tokensIn }}/{{ m.tokensOut }}</b></div>
+      <div class="chip"><span class="muted">Tokens</span> <b class="mono">{{ m.tokensIn }}/{{ m.tokensOut }}</b></div>
       <div class="chip"><span class="muted">Coste</span> <b class="mono">{{ usd(m.costUsd) }}</b></div>
       <div class="chip"><span class="muted">Presupuesto</span> <b class="mono">{{ c.budgetUsd ? usd(c.budgetUsd) : '∞' }}</b></div>
-      @if (c.parallelDev > 1) { <div class="chip"><span class="muted">Devs</span> <b class="mono">×{{ c.parallelDev }}</b></div> }
     </section>
   }
 
-  <section class="thread">
-    @if (messages().length === 0) {
-      <p class="muted">Sin mensajes aún. Pulsa «Iniciar» para lanzar el pipeline.</p>
-    }
-    @for (m of messages(); track m.id) {
-      @if (m.fromInstance === 'system') {
-        <article class="msg-system">
-          <div class="msg-body">{{ m.content }}</div>
-        </article>
-      } @else {
-        <article class="msg" [style.--role]="roleColor(roleOf(m.fromInstance))">
-          <div class="msg-head">
-            <span class="role-dot" [style.background]="roleColor(roleOf(m.fromInstance))"></span>
-            <span class="who">{{ roleLabel(m.fromInstance) }}</span>
-            @if (m.signal) {
-              <span class="signal" [style.color]="signalColor(m.signal)">[{{ m.signal }}]</span>
-            }
-            <span class="spacer"></span>
-            <span class="muted mono cost">{{ usd(m.costEstimate) }}</span>
-          </div>
-          <div class="msg-body">{{ m.content }}</div>
-        </article>
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button [class.active]="tab() === 'chat'" (click)="tab.set('chat')">Conversación</button>
+    <button [class.active]="tab() === 'flow'" (click)="tab.set('flow')">Flujo</button>
+  </nav>
+
+  @if (tab() === 'chat') {
+    <section class="thread">
+      @if (messages().length === 0) {
+        <p class="muted">Sin mensajes aún. Pulsa «Iniciar» para lanzar el pipeline.</p>
       }
-    }
-  </section>
+      @for (m of messages(); track m.id) {
+        @if (m.fromInstance === 'system') {
+          <article class="msg-system reveal">
+            <div class="md" [innerHTML]="m.content | markdown"></div>
+          </article>
+        } @else {
+          <article class="tl-item reveal" [style.--role]="roleColor(roleOf(m.fromInstance))">
+            <div class="tl-rail">
+              <span class="tl-node">{{ roleLabel(m.fromInstance).charAt(0) }}</span>
+            </div>
+            <div class="tl-card">
+              <div class="tl-head">
+                <span class="who">{{ roleLabel(m.fromInstance) }}</span>
+                @if (m.signal) {
+                  <span class="sig-chip" [style.--s]="signalColor(m.signal)">{{ m.signal }}</span>
+                }
+                <span class="spacer"></span>
+                <span class="muted mono cost">{{ usd(m.costEstimate) }}</span>
+              </div>
+              <div class="md" [innerHTML]="m.content | markdown"></div>
+            </div>
+          </article>
+        }
+      }
+      @if (isRunning()) {
+        <div class="thinking">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="muted">{{ activeRole() ? roleLabel(activeRole()!) : 'Agente' }} trabajando…</span>
+        </div>
+      }
+    </section>
+  } @else {
+    <!-- Diagrama de flujo SVG a medida -->
+    <section class="flow-view card">
+      @if (flow().length === 0) {
+        <p class="muted">Aún no hay flujo que mostrar.</p>
+      } @else {
+        <svg class="flow-svg" [attr.viewBox]="'0 0 ' + (flow().length * 180 + 40) + ' 160'" preserveAspectRatio="xMinYMid meet">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,3 L0,6 Z" fill="var(--color-border)" />
+            </marker>
+          </defs>
+          @for (step of flow(); track step.index; let i = $index; let last = $last) {
+            <!-- flecha hacia el siguiente -->
+            @if (!last) {
+              <line class="flow-arrow" [attr.x1]="i * 180 + 130" [attr.y1]="70"
+                    [attr.x2]="(i + 1) * 180 + 50" [attr.y2]="70" />
+            }
+            <!-- nodo -->
+            <g class="flow-node" [style.--role]="roleColor(step.role)">
+              <circle [attr.cx]="i * 180 + 90" [attr.cy]="70" r="34"
+                      [attr.fill]="roleColor(step.role)" fill-opacity="0.15"
+                      [attr.stroke]="roleColor(step.role)" stroke-width="2" />
+              <text [attr.x]="i * 180 + 90" [attr.y]="66" text-anchor="middle" class="flow-role">
+                {{ roleLabel(step.instance) }}
+              </text>
+              <text [attr.x]="i * 180 + 90" [attr.y]="84" text-anchor="middle" class="flow-order">
+                paso {{ i + 1 }}
+              </text>
+              @if (step.signal) {
+                <text [attr.x]="i * 180 + 90" [attr.y]="128" text-anchor="middle"
+                      class="flow-signal" [attr.fill]="signalColor(step.signal)">
+                  [{{ step.signal }}]
+                </text>
+              }
+            </g>
+          }
+        </svg>
+        <p class="flow-legend muted">
+          Recorrido real de los turnos entre agentes. Las vueltas al Dev tras <b>CHANGES</b> aparecen como pasos consecutivos.
+        </p>
+      }
+    </section>
+  }
 } @else {
   <p class="muted">Cargando…</p>
 }
