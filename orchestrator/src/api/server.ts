@@ -73,6 +73,15 @@ export function buildApi(deps: ApiDeps) {
     return { ...ws, conversations };
   });
 
+  // Elimina el workspace y sus conversaciones/mensajes (cascade en DB).
+  // NO borra los ficheros/repos del disco (se conservan en PROJECTS_ROOT).
+  app.delete('/api/workspaces/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const ok = await repos.deleteWorkspace(id);
+    if (!ok) return reply.code(404).send({ error: 'no encontrado' });
+    return { deleted: true };
+  });
+
   // ---- Conversations ----
   app.post('/api/workspaces/:id/conversations', async (req, reply) => {
     const { id } = req.params as { id: string };

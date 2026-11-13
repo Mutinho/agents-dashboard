@@ -32,6 +32,16 @@ export class Workspaces implements OnInit {
     this.items.set(await this.api.workspaces().catch(() => []));
   }
 
+  async remove(ev: Event, id: string, name: string) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (!confirm(`¿Eliminar el workspace "${name}"? Se borran sus conversaciones (los ficheros del disco se conservan).`)) {
+      return;
+    }
+    await this.api.deleteWorkspace(id).catch(() => null);
+    await this.reload();
+  }
+
   async create() {
     if (!this.name.trim()) return;
     this.creating.set(true);

@@ -49,6 +49,9 @@ export class ApiService {
       this.http.get<Workspace & { conversations: Conversation[] }>(`${API}/workspaces/${id}`),
     );
   }
+  deleteWorkspace(id: string) {
+    return firstValueFrom(this.http.delete<{ deleted: boolean }>(`${API}/workspaces/${id}`));
+  }
   workspaceMetrics(id: string) {
     return firstValueFrom(this.http.get<Metrics>(`${API}/workspaces/${id}/metrics`));
   }

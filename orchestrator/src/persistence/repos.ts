@@ -57,6 +57,12 @@ export class Repos {
     return rows.map(this.mapWorkspace);
   }
 
+  /** Elimina un workspace (cascade: conversaciones, participantes y mensajes). */
+  async deleteWorkspace(wid: string): Promise<boolean> {
+    const res = await this.pool.query('DELETE FROM workspaces WHERE id=$1', [wid]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
   async getWorkspace(wid: string): Promise<Workspace | null> {
     const { rows } = await this.pool.query('SELECT * FROM workspaces WHERE id=$1', [wid]);
     return rows[0] ? this.mapWorkspace(rows[0]) : null;

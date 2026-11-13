@@ -56,7 +56,10 @@
       <a class="card ws" [routerLink]="['/workspaces', ws.id]">
         <div class="ws-head">
           <h2>{{ ws.name }}</h2>
-          <span class="src-badge" [class]="ws.sourceType">{{ ws.sourceType }}</span>
+          <div class="ws-head-right">
+            <span class="src-badge" [class]="ws.sourceType">{{ ws.sourceType }}</span>
+            <button class="del" title="Eliminar workspace" (click)="remove($event, ws.id, ws.name)">✕</button>
+          </div>
         </div>
         @if (ws.description) { <p class="desc">{{ ws.description }}</p> }
         @if (ws.repos.length) {
