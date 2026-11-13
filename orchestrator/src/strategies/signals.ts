@@ -38,3 +38,32 @@ export function parseSignal(text: string): ParsedSignal {
 export function isTerminal(signal: ControlSignal | null): boolean {
   return signal === 'APPROVED' || signal === 'BLOCKED';
 }
+
+/**
+ * Extrae el PLAN de ejecución que declara el PO: `[PLAN] ux, dev, validator`.
+ * Devuelve la secuencia de roles válidos (sin el PO, que ya ha hablado).
+ * Garantiza que el Validador cierra siempre. Si no hay plan válido, null
+ * (el orquestador usará el pipeline por defecto).
+ */
+export function parsePlan(text: string): ('ux' | 'dev' | 'validator')[] | null {
+  if (!text) return null;
+  const m = text.match(/\[PLAN\]\s*([^\n\r]+)/i);
+  if (!m) return null;
+  const valid = ['ux', 'dev', 'validator'] as const;
+  const seq = m[1]
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter((s): s is 'ux' | 'dev' | 'validator' => (valid as readonly string[]).includes(s));
+  if (seq.length === 0) return null;
+  // dedup preservando orden
+  const out: ('ux' | 'dev' | 'validator')[] = [];
+  for (const r of seq) if (!out.includes(r)) out.push(r);
+  // el Validador siempre cierra
+  if (!out.includes('validator')) out.push('validator');
+  else {
+    out.splice(out.indexOf('validator'), 1);
+    out.push('validator');
+  }
+  return out;
+}

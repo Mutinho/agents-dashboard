@@ -2,6 +2,7 @@ import type { AgentRole, Conversation, ControlSignal, TurnResult } from '../doma
 import type { OpencodeClient } from '../opencode/client.js';
 import type { Repos } from '../persistence/repos.js';
 import { snapshot, diffSnapshots } from '../opencode/files.js';
+import { parsePlan } from './signals.js';
 
 export interface PipelineDeps {
   opencode: OpencodeClient;
@@ -56,15 +57,13 @@ export class PipelineStrategy {
     await repos.setConversationStatus(cid, 'running');
     emit?.('conversation.status', { conversationId: cid, status: 'running' });
 
-    // Crea una sesión OpenCode por rol. Para Dev en paralelo, crea N instancias
-    // (dev#1..devN) además de la sesión base "dev".
+    // Sesión por rol. Para Dev en paralelo, N instancias (dev#1..devN).
     const sessions = new Map<AgentRole, string>();
     for (const role of PIPELINE) {
       const sid = await opencode.createSession(`${conversation.title} · ${role}`);
       sessions.set(role, sid);
       await repos.upsertParticipant(cid, role, role, sid);
     }
-
     const devInstances: { label: string; sessionId: string }[] = [];
     if (conversation.parallelDev > 1) {
       for (let i = 1; i <= conversation.parallelDev; i++) {
@@ -76,104 +75,101 @@ export class PipelineStrategy {
     }
     this.devInstances = devInstances;
 
-    // Contexto compartido que se pasa de etapa a etapa.
     let context =
       `# Objetivo del proyecto\n${conversation.goal}\n\n` +
       `> Directorio de trabajo asignado: \`${workspacePath}\`. ` +
       `Crea y edita TODOS los ficheros dentro de ese directorio; no trabajes fuera de él.\n`;
-    let iteration = 0;
-    let stageIndex = 0;
-    let lastValidatorFeedback = '';
     let spentUsd = 0;
+    let iteration = 0;
 
-    while (iteration < conversation.maxIterations) {
-      iteration += 1;
-      const role = PIPELINE[stageIndex];
-
-      emit?.('turn.started', { conversationId: cid, role, iteration });
-
-      // Etapa Dev con posible paralelismo; el resto, turno único.
-      const result =
-        role === 'dev' && conversation.parallelDev > 1
-          ? await this.runDevStageParallel(conversation, sessions, context, lastValidatorFeedback)
-          : await this.runSingleTurn(conversation, role, sessions.get(role)!, context, lastValidatorFeedback);
-
+    // Estado compartido para el control de coste/error/presupuesto por turno.
+    // Devuelve true si debe detenerse el pipeline tras el turno.
+    const handleResult = async (role: string, result: TurnResult): Promise<boolean> => {
       if (result.error) {
-        // Mensaje de sistema VISIBLE en el dashboard (no dejar pantalla vacía).
         await repos.addMessage({
-          conversationId: cid,
-          fromInstance: 'system',
-          toInstances: [],
-          type: 'system',
+          conversationId: cid, fromInstance: 'system', toInstances: [], type: 'system',
           content:
-            `⚠️ El turno de **${ROLE_NAME[role]}** falló y la conversación se detiene.\n\n` +
-            `Motivo: ${result.error}\n\n` +
-            `Sugerencias: reduce el alcance del objetivo, usa un objetivo más concreto, ` +
-            `o reintenta. Con repos grandes conviene pedir tareas acotadas (no "analiza todo").`,
-          signal: null,
-          artifacts: [],
-          tokensIn: result.tokensIn,
-          tokensOut: result.tokensOut,
-          costEstimate: result.cost,
+            `⚠️ El turno de **${ROLE_NAME[role as AgentRole] ?? role}** falló y la conversación se detiene.\n\n` +
+            `Motivo: ${result.error}\n\nSugerencias: reduce el alcance del objetivo, usa un objetivo más ` +
+            `concreto, o reintenta. Con repos grandes conviene pedir tareas acotadas.`,
+          signal: null, artifacts: [], tokensIn: result.tokensIn, tokensOut: result.tokensOut, costEstimate: result.cost,
         });
         await repos.setConversationStatus(cid, 'failed');
         emit?.('message.created', { conversationId: cid, role: 'system', signal: null });
         emit?.('conversation.status', { conversationId: cid, status: 'failed', error: result.error });
-        return;
+        return true;
       }
-
-      // Métricas: acumular coste del turno y emitir cost.update.
       spentUsd += result.cost;
-      emit?.('cost.update', {
-        conversationId: cid,
-        role,
-        turnCostUsd: result.cost,
-        spentUsd,
-        budgetUsd: conversation.budgetUsd,
-      });
-
-      // Freno de presupuesto: si hay límite y se supera, pausar la conversación.
+      emit?.('cost.update', { conversationId: cid, role, turnCostUsd: result.cost, spentUsd, budgetUsd: conversation.budgetUsd });
       if (conversation.budgetUsd > 0 && spentUsd >= conversation.budgetUsd) {
         await repos.setConversationStatus(cid, 'paused');
-        emit?.('budget.exceeded', {
-          conversationId: cid,
-          spentUsd,
-          budgetUsd: conversation.budgetUsd,
-        });
-        emit?.('conversation.status', {
-          conversationId: cid,
-          status: 'paused',
-          reason: `presupuesto superado ($${spentUsd.toFixed(4)} ≥ $${conversation.budgetUsd})`,
-        });
-        return;
+        emit?.('budget.exceeded', { conversationId: cid, spentUsd, budgetUsd: conversation.budgetUsd });
+        emit?.('conversation.status', { conversationId: cid, status: 'paused', reason: `presupuesto superado ($${spentUsd.toFixed(4)} ≥ $${conversation.budgetUsd})` });
+        return true;
       }
-
-      // Acumular la salida al contexto (salvo SKIP, que no aporta entregable).
       if (result.signal !== 'SKIP') {
-        context += `\n---\n## Aportación de ${ROLE_NAME[role]}\n${result.text}\n`;
+        context += `\n---\n## Aportación de ${ROLE_NAME[role as AgentRole] ?? role}\n${result.text}\n`;
       }
+      return false;
+    };
 
-      const next = this.decideNext(role, result.signal, stageIndex);
+    // ---- 1) Turno del PO (siempre primero) ----
+    iteration++;
+    emit?.('turn.started', { conversationId: cid, role: 'po', iteration });
+    const poResult = await this.runSingleTurn(conversation, 'po', sessions.get('po')!, context, '');
+    if (await handleResult('po', poResult)) return;
+    if (poResult.signal === 'BLOCKED') {
+      await repos.setConversationStatus(cid, 'blocked');
+      emit?.('conversation.status', { conversationId: cid, status: 'blocked' });
+      return;
+    }
 
-      if (next.terminal) {
-        await repos.setConversationStatus(cid, next.status!);
-        emit?.('conversation.status', { conversationId: cid, status: next.status });
+    // ---- 2) Parsear el PLAN declarado por el PO (fallback a pipeline fijo) ----
+    const plan = parsePlan(poResult.text) ?? (['ux', 'dev', 'validator'] as const);
+    // último rol productor (no-validator) del plan, para el loop de CHANGES
+    const producers = plan.filter((r) => r !== 'validator');
+    const lastProducer = producers[producers.length - 1] ?? 'dev';
+
+    // ---- 3) Ejecutar la secuencia dinámica ----
+    let idx = 0;
+    let lastValidatorFeedback = '';
+    while (idx < plan.length && iteration < conversation.maxIterations) {
+      const role = plan[idx] as AgentRole;
+      iteration++;
+      emit?.('turn.started', { conversationId: cid, role, iteration });
+
+      const feedback = role === lastProducer ? lastValidatorFeedback : '';
+      const result =
+        role === 'dev' && conversation.parallelDev > 1
+          ? await this.runDevStageParallel(conversation, sessions, context, feedback)
+          : await this.runSingleTurn(conversation, role, sessions.get(role)!, context, feedback);
+
+      if (await handleResult(role, result)) return;
+      if (result.signal === 'BLOCKED') {
+        await repos.setConversationStatus(cid, 'blocked');
+        emit?.('conversation.status', { conversationId: cid, status: 'blocked' });
         return;
       }
 
-      if (role === 'validator' && result.signal === 'CHANGES') {
+      if (role === 'validator') {
+        if (result.signal === 'APPROVED') {
+          await repos.setConversationStatus(cid, 'done');
+          emit?.('conversation.status', { conversationId: cid, status: 'done' });
+          return;
+        }
+        // CHANGES (u otra señal): volver al último rol productor del plan.
         lastValidatorFeedback = result.text;
+        const back = plan.indexOf(lastProducer);
+        idx = back >= 0 ? back : plan.length - 1;
+        continue;
       }
-      stageIndex = next.stageIndex!;
+
+      idx++;
     }
 
     // Se agotaron las iteraciones sin [APPROVED].
     await repos.setConversationStatus(cid, 'paused');
-    emit?.('conversation.status', {
-      conversationId: cid,
-      status: 'paused',
-      reason: 'maxIterations alcanzado',
-    });
+    emit?.('conversation.status', { conversationId: cid, status: 'paused', reason: 'maxIterations alcanzado' });
   }
 
   /** Ejecuta un turno simple (un agente, una sesión) y persiste el mensaje. */
@@ -324,23 +320,5 @@ export class PipelineStrategy {
       `${context}\n---\n` +
       `Es tu turno como ${ROLE_NAME[role]}. Aporta tu parte o descártate con [SKIP] si no procede.`
     );
-  }
-
-  /** Decide la siguiente etapa según la señal (máquina de estados del pipeline). */
-  private decideNext(
-    role: AgentRole,
-    signal: ControlSignal | null,
-    stageIndex: number,
-  ): { terminal: boolean; status?: 'done' | 'blocked'; stageIndex?: number } {
-    if (signal === 'BLOCKED') return { terminal: true, status: 'blocked' };
-
-    if (role === 'validator') {
-      if (signal === 'APPROVED') return { terminal: true, status: 'done' };
-      // CHANGES (o cualquier otra) -> volver a Dev.
-      return { terminal: false, stageIndex: PIPELINE.indexOf('dev') };
-    }
-
-    // PO / UX / Dev: avanzar a la siguiente etapa (tanto en DONE como en SKIP).
-    return { terminal: false, stageIndex: stageIndex + 1 };
   }
 }
