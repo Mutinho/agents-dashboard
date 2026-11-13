@@ -43,3 +43,15 @@
   max-height: 420px;
   overflow: auto;
 }
+
+.msg-system {
+  background: color-mix(in srgb, var(--color-destructive) 12%, var(--color-card));
+  border: 1px solid var(--color-destructive);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.msg-system .msg-body {
+  color: var(--color-foreground);
+  white-space: pre-wrap;
+  font-size: 13px;
+}

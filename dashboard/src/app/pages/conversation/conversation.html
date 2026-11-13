@@ -29,18 +29,24 @@
       <p class="muted">Sin mensajes aún. Pulsa «Iniciar» para lanzar el pipeline.</p>
     }
     @for (m of messages(); track m.id) {
-      <article class="msg" [style.--role]="roleColor(roleOf(m.fromInstance))">
-        <div class="msg-head">
-          <span class="role-dot" [style.background]="roleColor(roleOf(m.fromInstance))"></span>
-          <span class="who">{{ roleLabel(m.fromInstance) }}</span>
-          @if (m.signal) {
-            <span class="signal" [style.color]="signalColor(m.signal)">[{{ m.signal }}]</span>
-          }
-          <span class="spacer"></span>
-          <span class="muted mono cost">{{ usd(m.costEstimate) }}</span>
-        </div>
-        <div class="msg-body">{{ m.content }}</div>
-      </article>
+      @if (m.fromInstance === 'system') {
+        <article class="msg-system">
+          <div class="msg-body">{{ m.content }}</div>
+        </article>
+      } @else {
+        <article class="msg" [style.--role]="roleColor(roleOf(m.fromInstance))">
+          <div class="msg-head">
+            <span class="role-dot" [style.background]="roleColor(roleOf(m.fromInstance))"></span>
+            <span class="who">{{ roleLabel(m.fromInstance) }}</span>
+            @if (m.signal) {
+              <span class="signal" [style.color]="signalColor(m.signal)">[{{ m.signal }}]</span>
+            }
+            <span class="spacer"></span>
+            <span class="muted mono cost">{{ usd(m.costEstimate) }}</span>
+          </div>
+          <div class="msg-body">{{ m.content }}</div>
+        </article>
+      }
     }
   </section>
 } @else {

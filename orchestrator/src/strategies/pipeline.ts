@@ -81,7 +81,25 @@ export class PipelineStrategy {
           : await this.runSingleTurn(conversation, role, sessions.get(role)!, context, lastValidatorFeedback);
 
       if (result.error) {
+        // Mensaje de sistema VISIBLE en el dashboard (no dejar pantalla vacía).
+        await repos.addMessage({
+          conversationId: cid,
+          fromInstance: 'system',
+          toInstances: [],
+          type: 'system',
+          content:
+            `⚠️ El turno de **${ROLE_NAME[role]}** falló y la conversación se detiene.\n\n` +
+            `Motivo: ${result.error}\n\n` +
+            `Sugerencias: reduce el alcance del objetivo, usa un objetivo más concreto, ` +
+            `o reintenta. Con repos grandes conviene pedir tareas acotadas (no "analiza todo").`,
+          signal: null,
+          artifacts: [],
+          tokensIn: result.tokensIn,
+          tokensOut: result.tokensOut,
+          costEstimate: result.cost,
+        });
         await repos.setConversationStatus(cid, 'failed');
+        emit?.('message.created', { conversationId: cid, role: 'system', signal: null });
         emit?.('conversation.status', { conversationId: cid, status: 'failed', error: result.error });
         return;
       }
@@ -271,6 +289,17 @@ export class PipelineStrategy {
         `${context}\n---\n` +
         `El Validador pidió cambios:\n${feedback}\n\n` +
         `Aplica las correcciones necesarias.`
+      );
+    }
+    if (role === 'po') {
+      return (
+        `${context}\n---\n` +
+        `Es tu turno como Product Owner.\n` +
+        `IMPORTANTE: NO explores el repositorio fichero a fichero. Para ubicarte, mira SOLO ` +
+        `el README y, como mucho, la estructura de carpetas de primer nivel (un vistazo rápido). ` +
+        `No abras muchos ficheros ni leas código en profundidad: el análisis detallado es trabajo del Dev.\n` +
+        `Descompón el objetivo en 2-4 historias con criterios de aceptación concretos y accionables, ` +
+        `e indica qué roles intervienen. Sé breve. Termina con [DONE] (o [SKIP]/[BLOCKED]).`
       );
     }
     return (

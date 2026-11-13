@@ -111,7 +111,7 @@ services:
       ORCH_WS_PORT: 8788
       NATS_URL: nats://broker:4222
       # Timeout por turno de agente (robustez modo autónomo). Default 6 min.
-      TURN_TIMEOUT_MS: ${TURN_TIMEOUT_MS:-360000}
+      TURN_TIMEOUT_MS: ${TURN_TIMEOUT_MS:-180000}
       # Raíz de proyectos (dentro del contenedor). Clona repos aquí.
       PROJECTS_DIR: /projects
     volumes:

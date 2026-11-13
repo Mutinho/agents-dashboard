@@ -156,7 +156,23 @@ export function buildApi(deps: ApiDeps) {
     const strategy = new PipelineStrategy({ opencode, repos, emit });
     strategy.run(conv, workspacePath).catch(async (err) => {
       app.log.error({ err }, 'pipeline falló');
+      // Mensaje de sistema visible + marcar failed (no dejar huérfana en running).
+      await repos
+        .addMessage({
+          conversationId: id,
+          fromInstance: 'system',
+          toInstances: [],
+          type: 'system',
+          content: `⚠️ La conversación se detuvo por un error inesperado: ${err?.message ?? err}`,
+          signal: null,
+          artifacts: [],
+          tokensIn: 0,
+          tokensOut: 0,
+          costEstimate: 0,
+        })
+        .catch(() => {});
       await repos.setConversationStatus(id, 'failed').catch(() => {});
+      emit('conversation.status', { conversationId: id, status: 'failed' });
     });
     return { started: true, conversationId: id };
   });
