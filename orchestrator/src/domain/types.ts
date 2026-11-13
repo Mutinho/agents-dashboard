@@ -27,12 +27,17 @@ export type MessageType =
   | 'system';
 
 /** Espacio / proyecto de trabajo. */
+export type WorkspaceSource = 'empty' | 'local' | 'github';
+
 export interface Workspace {
   id: string;
   slug: string;
   name: string;
   description: string | null;
-  path: string; // directorio físico bajo /workspaces
+  path: string; // compat: ruta de trabajo (legacy /workspaces o la real)
+  sourceType: WorkspaceSource;
+  repos: string[]; // URLs de repos GitHub clonados
+  projectPath: string | null; // ruta real dentro del contenedor (/projects/<slug> o /workspaces/<slug>)
   createdAt: string;
 }
 

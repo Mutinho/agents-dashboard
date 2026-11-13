@@ -444,6 +444,22 @@ La infra se levanta con el wrapper **`./dc.sh`** (o los targets de **`Makefile`*
 
 Comandos habituales: `make up` (solo opencode), `make up-full` (todo), `make health`, `make logs`, `make build`.
 
+### 8.2 Workspaces con directorio de trabajo real (carpetas locales + repos GitHub)
+
+Además del modo "vacío" (los agentes crean de cero), un workspace puede apuntar a **código real del ordenador**:
+
+- **Raíz permitida**: `PROJECTS_ROOT` (`.env`, por defecto `/home/javi/proyects_ia`) se monta en **ambos** contenedores (`opencode` y `orchestrator`) en la misma ruta `/projects`.
+- **Fuente del workspace** (elegible al crearlo en el dashboard):
+  - `empty`: carpeta nueva bajo la raíz.
+  - `local`: una subcarpeta **existente** bajo la raíz (validada con anti path-traversal).
+  - `github`: **uno o varios** repos públicos que el orquestador **clona** (`git clone --depth 1`) dentro de `/projects/<slug>/`.
+- Los agentes trabajan en **lectura/escritura** sobre esa ruta; los ficheros creados aparecen en tu disco real.
+- **git** en la imagen del orquestador + CA corporativa (`GIT_SSL_CAINFO`) para clonar a través del proxy Zscaler.
+
+> **Permiso clave (`external_directory`)**: para que los agentes puedan leer/escribir en `/projects` sin colgarse, `opencode.jsonc` fija `permission.external_directory: "allow"` y `permission.question: "deny"`. Sin esto, OpenCode pone `external_directory` en `ask` y el agente **se cuelga esperando aprobación** en modo autónomo (causa raíz diagnosticada). Nota: el binario 1.19.5 usa el **esquema V1** de config → `permission` es un **objeto** (`{accion: allow|ask|deny}`), no el array `permissions` de V2.
+>
+> **Verificado E2E**: workspace con repo GitHub público → clonado en `/home/javi/proyects_ia/<slug>/`; una conversación leyó el repo real y escribió `ANALISIS.md` en disco; flujo PO→UX→Dev→Validador a `done`.
+
 ---
 
 ## 9. Control de costes (OpenRouter / tokens)

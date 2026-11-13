@@ -35,8 +35,14 @@ export class ApiService {
   workspaces() {
     return firstValueFrom(this.http.get<Workspace[]>(`${API}/workspaces`));
   }
-  createWorkspace(name: string, description?: string) {
-    return firstValueFrom(this.http.post<Workspace>(`${API}/workspaces`, { name, description }));
+  createWorkspace(body: {
+    name: string;
+    description?: string;
+    sourceType?: 'empty' | 'local' | 'github';
+    repos?: string[];
+    localSubpath?: string;
+  }) {
+    return firstValueFrom(this.http.post<Workspace>(`${API}/workspaces`, body));
   }
   workspace(id: string) {
     return firstValueFrom(

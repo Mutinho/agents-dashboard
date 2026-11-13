@@ -52,3 +52,6 @@ config/opencode/certs/*.crt
 
 # CA corporativa del build del dashboard (no versionar)
 dashboard/certs/*.crt
+
+# CA corporativa del orchestrator (no versionar)
+orchestrator/certs/*.crt

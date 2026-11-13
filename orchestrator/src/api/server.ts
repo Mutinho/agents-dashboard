@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import type { Repos } from '../persistence/repos.js';
 import type { OpencodeClient } from '../opencode/client.js';
 import { PipelineStrategy } from '../strategies/pipeline.js';
+import { prepareWorkspace } from '../opencode/projects.js';
 
 export interface ApiDeps {
   repos: Repos;
@@ -27,9 +28,41 @@ export function buildApi(deps: ApiDeps) {
   app.get('/api/workspaces', async () => repos.listWorkspaces());
 
   app.post('/api/workspaces', async (req, reply) => {
-    const body = (req.body ?? {}) as { name?: string; description?: string };
+    const body = (req.body ?? {}) as {
+      name?: string;
+      description?: string;
+      sourceType?: 'empty' | 'local' | 'github';
+      repos?: string[];
+      localSubpath?: string;
+    };
     if (!body.name) return reply.code(400).send({ error: 'name requerido' });
-    return repos.createWorkspace(body.name, body.description ?? null);
+
+    const sourceType = body.sourceType ?? 'empty';
+    const { id, slug } = repos.makeWorkspaceIds(body.name);
+
+    // Prepara el directorio real (crea/clona). Si falla el clonado grave, devuelve 400.
+    let prepared;
+    try {
+      prepared = await prepareWorkspace({
+        slug,
+        sourceType,
+        repos: body.repos ?? [],
+        localSubpath: body.localSubpath,
+      });
+    } catch (err: any) {
+      return reply.code(400).send({ error: err?.message ?? 'no se pudo preparar el workspace' });
+    }
+
+    const ws = await repos.createWorkspace({
+      id,
+      slug,
+      name: body.name,
+      description: body.description ?? null,
+      sourceType,
+      repos: prepared.clonedRepos,
+      projectPath: prepared.projectPath,
+    });
+    return { ...ws, warnings: prepared.warnings };
   });
 
   app.get('/api/workspaces/:id', async (req, reply) => {
@@ -109,7 +142,7 @@ export function buildApi(deps: ApiDeps) {
     if (conv.status === 'running') return reply.code(409).send({ error: 'ya en ejecución' });
 
     const ws = await repos.getWorkspace(conv.workspaceId);
-    const workspacePath = ws?.path ?? '/workspaces';
+    const workspacePath = ws?.projectPath ?? ws?.path ?? '/workspaces';
 
     const strategy = new PipelineStrategy({ opencode, repos, emit });
     strategy.run(conv, workspacePath).catch(async (err) => {

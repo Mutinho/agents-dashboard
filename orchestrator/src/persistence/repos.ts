@@ -26,14 +26,28 @@ export class Repos {
   constructor(private readonly pool: Pool) {}
 
   // ---- Workspaces ----
-  async createWorkspace(name: string, description: string | null): Promise<Workspace> {
+  /** Genera un slug único para un nombre (lo usa la API antes de clonar). */
+  makeWorkspaceIds(name: string): { id: string; slug: string } {
     const wid = id('ws');
-    const slug = `${slugify(name)}-${wid.slice(-4)}`;
-    const path = `/workspaces/${slug}`;
+    return { id: wid, slug: `${slugify(name)}-${wid.slice(-4)}` };
+  }
+
+  async createWorkspace(opts: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    sourceType: string;
+    repos: string[];
+    projectPath: string | null;
+  }): Promise<Workspace> {
+    // 'path' legacy = projectPath real si existe, si no la carpeta interna.
+    const path = opts.projectPath ?? `/workspaces/${opts.slug}`;
     const { rows } = await this.pool.query(
-      `INSERT INTO workspaces(id, slug, name, description, path)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [wid, slug, name, description, path],
+      `INSERT INTO workspaces(id, slug, name, description, path, source_type, repos, project_path)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [opts.id, opts.slug, opts.name, opts.description, path,
+       opts.sourceType, JSON.stringify(opts.repos), opts.projectPath],
     );
     return this.mapWorkspace(rows[0]);
   }
@@ -208,6 +222,9 @@ export class Repos {
     name: r.name,
     description: r.description,
     path: r.path,
+    sourceType: r.source_type ?? 'empty',
+    repos: r.repos ?? [],
+    projectPath: r.project_path ?? null,
     createdAt: r.created_at?.toISOString?.() ?? String(r.created_at),
   });
 

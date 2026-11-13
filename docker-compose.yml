@@ -30,8 +30,11 @@ services:
       - ./config/opencode/skills:/root/.config/opencode/skills:ro
       # Estado persistente de OpenCode (sesiones, auth, etc.)
       - ./data/opencode:/root/.local/share/opencode
-      # Workspaces de trabajo de los agentes
+      # Workspaces internos (modo "vacío", sin proyecto real)
       - ./workspaces:/workspaces
+      # Raíz de proyectos REALES del host (carpetas locales + repos clonados).
+      # Montada en la misma ruta /projects en opencode y orchestrator.
+      - ${PROJECTS_ROOT:-./data/projects}:/projects
     ports:
       # Publicado SOLO en loopback del host
       - "127.0.0.1:${OPENCODE_PORT:-4096}:4096"
@@ -109,6 +112,11 @@ services:
       NATS_URL: nats://broker:4222
       # Timeout por turno de agente (robustez modo autónomo). Default 6 min.
       TURN_TIMEOUT_MS: ${TURN_TIMEOUT_MS:-360000}
+      # Raíz de proyectos (dentro del contenedor). Clona repos aquí.
+      PROJECTS_DIR: /projects
+    volumes:
+      # Misma raíz de proyectos reales, misma ruta que en opencode.
+      - ${PROJECTS_ROOT:-./data/projects}:/projects
     ports:
       - "127.0.0.1:${ORCH_REST_PORT:-8787}:8787"
       - "127.0.0.1:${ORCH_WS_PORT:-8788}:8788"

@@ -23,7 +23,11 @@ export interface Workspace {
   name: string;
   description: string | null;
   path: string;
+  sourceType: 'empty' | 'local' | 'github';
+  repos: string[];
+  projectPath: string | null;
   createdAt: string;
+  warnings?: string[];
 }
 
 export interface Conversation {

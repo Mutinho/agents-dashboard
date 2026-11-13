@@ -19,7 +19,10 @@
   },
   "model": "openrouter/deepseek/deepseek-v4.1-flash-1017",
   "permission": {
-    "bash": "ask",
-    "edit": "ask"
+    "bash": "deny",
+    "edit": "allow",
+    "webfetch": "allow",
+    "external_directory": "allow",
+    "question": "deny"
   }
 }

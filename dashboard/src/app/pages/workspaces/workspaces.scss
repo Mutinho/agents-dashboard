@@ -2,18 +2,45 @@
 .page-head h1 { margin: 0 0 4px; font-size: 24px; }
 h2 { font-size: 15px; margin: 0 0 12px; }
 
-.create { margin-bottom: 20px; }
+.create { margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
 .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .form-row input { flex: 1; min-width: 180px; }
-.form-row .btn { flex: none; }
+label { font-size: 12px; color: var(--color-muted-foreground); }
+.hint { font-size: 12px; margin: 0; }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+.sources { display: flex; gap: 8px; }
+.src {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-muted-foreground);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-weight: 500;
 }
+.src:hover { border-color: var(--color-primary); }
+.src.active { border-color: var(--color-primary); background: var(--color-muted); color: var(--color-foreground); }
+
+.create .btn { align-self: flex-start; }
+.error { color: var(--color-destructive); font-size: 13px; margin: 0; }
+.warn { font-size: 12px; color: var(--signal-changes); }
+.warn ul { margin: 4px 0 0; padding-left: 18px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .ws { display: flex; flex-direction: column; gap: 8px; color: var(--color-foreground); }
 .ws:hover { border-color: var(--color-primary); text-decoration: none; }
+.ws-head { display: flex; justify-content: space-between; align-items: center; }
 .ws h2 { margin: 0; }
+.src-badge {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid var(--color-border);
+}
+.src-badge.github { color: #93c5fd; border-color: var(--role-dev); }
+.src-badge.local { color: #86efac; border-color: var(--signal-done); }
+.src-badge.empty { color: var(--color-muted-foreground); }
 .desc { margin: 0; color: var(--color-muted-foreground); font-size: 13px; }
-.path { font-size: 11px; color: var(--color-muted-foreground); }
+.repos { display: flex; flex-wrap: wrap; gap: 6px; }
+.repo { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--color-muted); }
+.path { font-size: 11px; color: var(--color-muted-foreground); word-break: break-all; }
