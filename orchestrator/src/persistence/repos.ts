@@ -99,6 +99,24 @@ export class Repos {
     return out;
   }
 
+  /** Lista de artefactos (ficheros generados/modificados por conversaciones) de un workspace. */
+  async listArtifacts(workspaceId: string): Promise<
+    { relPath: string; conversationId: string | null; action: string; ts: string }[]
+  > {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT ON (rel_path) rel_path, conversation_id, action, ts
+       FROM file_provenance WHERE workspace_id=$1
+       ORDER BY rel_path, ts DESC`,
+      [workspaceId],
+    );
+    return rows.map((r) => ({
+      relPath: r.rel_path,
+      conversationId: r.conversation_id,
+      action: r.action,
+      ts: r.ts?.toISOString?.() ?? String(r.ts),
+    }));
+  }
+
   async getWorkspace(wid: string): Promise<Workspace | null> {
     const { rows } = await this.pool.query('SELECT * FROM workspaces WHERE id=$1', [wid]);
     return rows[0] ? this.mapWorkspace(rows[0]) : null;

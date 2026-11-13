@@ -58,7 +58,7 @@ export class ApiService {
   }
   files(id: string) {
     return firstValueFrom(
-      this.http.get<{ tree: FileNode[]; provenance: Record<string, FileProvenance> }>(
+      this.http.get<{ files: { path: string; size: number; conversationId: string | null; action: string; ts: string }[] }>(
         `${API}/workspaces/${id}/files`,
       ),
     );

@@ -4,8 +4,8 @@ import type { Repos } from '../persistence/repos.js';
 import type { OpencodeClient } from '../opencode/client.js';
 import { PipelineStrategy } from '../strategies/pipeline.js';
 import { prepareWorkspace } from '../opencode/projects.js';
-import { listTree, readFileContent, resolveFile } from '../opencode/files.js';
-import { readFile } from 'node:fs/promises';
+import { readFileContent, resolveFile } from '../opencode/files.js';
+import { readFile, stat } from 'node:fs/promises';
 
 export interface ApiDeps {
   repos: Repos;
@@ -84,17 +84,36 @@ export function buildApi(deps: ApiDeps) {
     return { deleted: true };
   });
 
-  // Árbol de ficheros del workspace + trazabilidad (qué conversación tocó cada uno).
+  // Artefactos del workspace: SOLO los ficheros generados/modificados por
+  // conversaciones (no el árbol completo del repo clonado). Cada uno con su
+  // conversación de origen y tamaño actual en disco.
   app.get('/api/workspaces/:id/files', async (req, reply) => {
     const { id } = req.params as { id: string };
     const ws = await repos.getWorkspace(id);
     if (!ws) return reply.code(404).send({ error: 'no encontrado' });
     const base = ws.projectPath ?? ws.path;
-    const [tree, provenance] = await Promise.all([
-      listTree(base).catch(() => []),
-      repos.fileProvenance(id).catch(() => ({})),
-    ]);
-    return { tree, provenance };
+    const artifacts = await repos.listArtifacts(id).catch(() => []);
+    // Enriquecer con tamaño y existencia; descartar los que ya no existen.
+    const files = [];
+    for (const a of artifacts) {
+      try {
+        const abs = resolveFile(base, a.relPath);
+        const s = await stat(abs);
+        if (s.isFile()) {
+          files.push({
+            path: a.relPath,
+            size: s.size,
+            conversationId: a.conversationId,
+            action: a.action,
+            ts: a.ts,
+          });
+        }
+      } catch {
+        /* el artefacto fue borrado del disco: no se lista */
+      }
+    }
+    files.sort((x, y) => (x.ts < y.ts ? 1 : -1)); // más recientes primero
+    return { files };
   });
 
   // Contenido de un fichero del workspace (inline, con guardas).
