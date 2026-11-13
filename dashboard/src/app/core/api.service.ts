@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type {
   AgentProfile, Conversation, AgentMessage, Metrics, Health, Workspace,
+  FileNode, FileProvenance, FileContent,
 } from './models.js';
 
 // nginx hace proxy de /api -> orquestador y de /ws -> WebSocket del orquestador.
@@ -54,6 +55,21 @@ export class ApiService {
   }
   workspaceMetrics(id: string) {
     return firstValueFrom(this.http.get<Metrics>(`${API}/workspaces/${id}/metrics`));
+  }
+  files(id: string) {
+    return firstValueFrom(
+      this.http.get<{ tree: FileNode[]; provenance: Record<string, FileProvenance> }>(
+        `${API}/workspaces/${id}/files`,
+      ),
+    );
+  }
+  fileContent(id: string, path: string) {
+    return firstValueFrom(
+      this.http.get<FileContent>(`${API}/workspaces/${id}/file`, { params: { path } }),
+    );
+  }
+  downloadUrl(id: string, path: string): string {
+    return `${API}/workspaces/${id}/download?path=${encodeURIComponent(path)}`;
   }
 
   // Conversaciones

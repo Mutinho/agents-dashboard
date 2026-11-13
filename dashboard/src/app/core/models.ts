@@ -80,3 +80,25 @@ export interface RealtimeEvent {
   event: string;
   payload: any;
 }
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'dir' | 'file';
+  size?: number;
+  children?: FileNode[];
+}
+
+export interface FileProvenance {
+  conversationId: string | null;
+  action: string;
+  ts: string;
+}
+
+export interface FileContent {
+  path: string;
+  size: number;
+  binary: boolean;
+  content: string | null;
+  language: string;
+}

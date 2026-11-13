@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import type { Conversation, Workspace } from '../../core/models';
 import { statusColor, usd } from '../../core/ui';
+import { FileExplorer } from './file-explorer';
 
 @Component({
   selector: 'app-workspace-detail',
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, FileExplorer],
   templateUrl: './workspace-detail.html',
   styleUrl: './workspace-detail.scss',
 })

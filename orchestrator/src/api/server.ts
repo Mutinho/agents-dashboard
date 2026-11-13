@@ -4,6 +4,8 @@ import type { Repos } from '../persistence/repos.js';
 import type { OpencodeClient } from '../opencode/client.js';
 import { PipelineStrategy } from '../strategies/pipeline.js';
 import { prepareWorkspace } from '../opencode/projects.js';
+import { listTree, readFileContent, resolveFile } from '../opencode/files.js';
+import { readFile } from 'node:fs/promises';
 
 export interface ApiDeps {
   repos: Repos;
@@ -80,6 +82,54 @@ export function buildApi(deps: ApiDeps) {
     const ok = await repos.deleteWorkspace(id);
     if (!ok) return reply.code(404).send({ error: 'no encontrado' });
     return { deleted: true };
+  });
+
+  // Árbol de ficheros del workspace + trazabilidad (qué conversación tocó cada uno).
+  app.get('/api/workspaces/:id/files', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const ws = await repos.getWorkspace(id);
+    if (!ws) return reply.code(404).send({ error: 'no encontrado' });
+    const base = ws.projectPath ?? ws.path;
+    const [tree, provenance] = await Promise.all([
+      listTree(base).catch(() => []),
+      repos.fileProvenance(id).catch(() => ({})),
+    ]);
+    return { tree, provenance };
+  });
+
+  // Contenido de un fichero del workspace (inline, con guardas).
+  app.get('/api/workspaces/:id/file', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { path: rel } = req.query as { path?: string };
+    if (!rel) return reply.code(400).send({ error: 'path requerido' });
+    const ws = await repos.getWorkspace(id);
+    if (!ws) return reply.code(404).send({ error: 'no encontrado' });
+    const base = ws.projectPath ?? ws.path;
+    try {
+      return await readFileContent(base, rel);
+    } catch (err: any) {
+      return reply.code(400).send({ error: err?.message ?? 'no se pudo leer' });
+    }
+  });
+
+  // Descarga de un fichero del workspace.
+  app.get('/api/workspaces/:id/download', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { path: rel } = req.query as { path?: string };
+    if (!rel) return reply.code(400).send({ error: 'path requerido' });
+    const ws = await repos.getWorkspace(id);
+    if (!ws) return reply.code(404).send({ error: 'no encontrado' });
+    const base = ws.projectPath ?? ws.path;
+    try {
+      const abs = resolveFile(base, rel);
+      const data = await readFile(abs);
+      const name = rel.split('/').pop() ?? 'file';
+      reply.header('Content-Disposition', `attachment; filename="${name}"`);
+      reply.header('Content-Type', 'application/octet-stream');
+      return reply.send(data);
+    } catch (err: any) {
+      return reply.code(400).send({ error: err?.message ?? 'no se pudo descargar' });
+    }
   });
 
   // ---- Conversations ----

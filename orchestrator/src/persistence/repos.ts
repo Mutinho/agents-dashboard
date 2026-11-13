@@ -63,6 +63,42 @@ export class Repos {
     return (res.rowCount ?? 0) > 0;
   }
 
+  // ---- Trazabilidad de ficheros ----
+  async recordFileChanges(
+    workspaceId: string,
+    conversationId: string,
+    changes: { path: string; action: 'created' | 'modified' }[],
+  ): Promise<void> {
+    for (const c of changes) {
+      await this.pool.query(
+        `INSERT INTO file_provenance(id, workspace_id, conversation_id, rel_path, action)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (workspace_id, rel_path, conversation_id)
+         DO UPDATE SET action = EXCLUDED.action, ts = now()`,
+        [id('fp'), workspaceId, conversationId, c.path, c.action],
+      );
+    }
+  }
+
+  /** Mapa rel_path -> info de la última conversación que lo tocó (para el inspector). */
+  async fileProvenance(workspaceId: string): Promise<Record<string, { conversationId: string | null; action: string; ts: string }>> {
+    const { rows } = await this.pool.query(
+      `SELECT DISTINCT ON (rel_path) rel_path, conversation_id, action, ts
+       FROM file_provenance WHERE workspace_id=$1
+       ORDER BY rel_path, ts DESC`,
+      [workspaceId],
+    );
+    const out: Record<string, any> = {};
+    for (const r of rows) {
+      out[r.rel_path] = {
+        conversationId: r.conversation_id,
+        action: r.action,
+        ts: r.ts?.toISOString?.() ?? String(r.ts),
+      };
+    }
+    return out;
+  }
+
   async getWorkspace(wid: string): Promise<Workspace | null> {
     const { rows } = await this.pool.query('SELECT * FROM workspaces WHERE id=$1', [wid]);
     return rows[0] ? this.mapWorkspace(rows[0]) : null;

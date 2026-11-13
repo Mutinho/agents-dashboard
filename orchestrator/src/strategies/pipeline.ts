@@ -1,6 +1,7 @@
 import type { AgentRole, Conversation, ControlSignal, TurnResult } from '../domain/types.js';
 import type { OpencodeClient } from '../opencode/client.js';
 import type { Repos } from '../persistence/repos.js';
+import { snapshot, diffSnapshots } from '../opencode/files.js';
 
 export interface PipelineDeps {
   opencode: OpencodeClient;
@@ -32,6 +33,23 @@ export class PipelineStrategy {
   constructor(private readonly deps: PipelineDeps) {}
 
   async run(conversation: Conversation, workspacePath = '/workspaces'): Promise<void> {
+    // Snapshot inicial para trazabilidad de ficheros (qué tocó esta conversación).
+    const before = await snapshot(workspacePath).catch(() => new Map<string, number>());
+    try {
+      await this.runPipeline(conversation, workspacePath);
+    } finally {
+      // Diff y registro de ficheros creados/modificados por esta conversación.
+      try {
+        const after = await snapshot(workspacePath);
+        const changes = diffSnapshots(before, after);
+        if (changes.length) {
+          await this.deps.repos.recordFileChanges(conversation.workspaceId, conversation.id, changes);
+        }
+      } catch { /* trazabilidad best-effort, no rompe el pipeline */ }
+    }
+  }
+
+  private async runPipeline(conversation: Conversation, workspacePath = '/workspaces'): Promise<void> {
     const { opencode, repos, emit } = this.deps;
     const cid = conversation.id;
 

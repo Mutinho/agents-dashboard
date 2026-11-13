@@ -1,0 +1,62 @@
+<div class="files">
+  <div class="files-head">
+    <h2>Ficheros del workspace</h2>
+    <button class="btn" (click)="reload()">↻ Refrescar</button>
+  </div>
+
+  @if (loading()) {
+    <p class="muted">Cargando ficheros…</p>
+  } @else if (files().length === 0) {
+    <p class="muted">No hay ficheros todavía. Los que generen los agentes aparecerán aquí.</p>
+  } @else {
+    <ul class="tree">
+      @for (f of files(); track f.path) {
+        <li class="row" [class.dir]="isDir(f)" [style.padding-left.px]="12 + f.depth * 18">
+          @if (isDir(f)) {
+            <span class="fname dir-name">📁 {{ f.name }}</span>
+          } @else {
+            <span class="fname file-name" (click)="inspect(f)">{{ f.name }}</span>
+            <span class="fsize muted">{{ fmtSize(f.size) }}</span>
+            @if (f.prov && f.prov.conversationId) {
+              <a class="prov-badge" [routerLink]="['/conversations', f.prov.conversationId]"
+                 [title]="'Generado/modificado en la conversación ' + f.prov.conversationId">
+                {{ f.prov.action === 'created' ? 'creado' : 'modif.' }} · conv {{ convShort(f.prov.conversationId) }}
+              </a>
+            }
+            <span class="spacer"></span>
+            <button class="mini" (click)="inspect(f)" title="Ver">👁</button>
+            <a class="mini" [href]="downloadUrl(f.path)" title="Descargar" download>⬇</a>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<!-- Modal inspector -->
+@if (openFile() || loadingFile()) {
+  <div class="modal-backdrop" (click)="close()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      @if (loadingFile()) {
+        <p class="muted">Cargando contenido…</p>
+      } @else if (openFile(); as f) {
+        <div class="modal-head">
+          <code class="mono">{{ f.path }}</code>
+          <span class="muted">{{ fmtSize(f.size) }}</span>
+          <span class="spacer"></span>
+          <a class="btn" [href]="downloadUrl(f.path)" download>Descargar</a>
+          <button class="btn" (click)="close()">✕</button>
+        </div>
+        <div class="modal-body">
+          @if (f.binary) {
+            <p class="muted">Fichero binario o demasiado grande para mostrar. Usa «Descargar».</p>
+          } @else if (isMarkdown()) {
+            <div class="md" [innerHTML]="f.content | markdown"></div>
+          } @else {
+            <pre class="code"><code>{{ f.content }}</code></pre>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
