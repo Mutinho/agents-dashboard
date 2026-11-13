@@ -14,6 +14,8 @@ setGlobalDispatcher(
   }),
 );
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export interface OpencodeConfig {
   baseUrl: string;
   username?: string;
@@ -63,48 +65,69 @@ export class OpencodeClient {
   }
 
   /**
-   * Envía un prompt a un agente dentro de una sesión y espera la respuesta
-   * completa (modo síncrono). Devuelve texto, señal y métricas.
+   * Envía un prompt a un agente en modo ASÍNCRONO y sondea el estado de la
+   * sesión hasta que queda idle (patrón que soporta turnos largos sin que el
+   * timeout de conexión HTTP los aborte). Al terminar, lee el último mensaje
+   * del asistente y devuelve texto + señal + métricas.
    *
-   * Incluye un timeout por turno (default 6 min): si el agente no responde a
-   * tiempo (p.ej. bucle de tool-calls), se aborta el turno con error en vez de
-   * colgar la conversación indefinidamente. Es robustez para modo autónomo.
+   * `TURN_TIMEOUT_MS` sigue actuando como tope de seguridad (si el turno no
+   * acaba en ese tiempo, se marca error) pero ya no corta una conexión viva:
+   * el trabajo del agente puede durar lo que necesite dentro de ese límite.
    */
   async prompt(
     sessionId: string,
     agent: AgentRole,
     text: string,
   ): Promise<TurnResult> {
-    const timeoutMs = Number(process.env.TURN_TIMEOUT_MS ?? 6 * 60_000);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutMs = Number(process.env.TURN_TIMEOUT_MS ?? 15 * 60_000);
+    const pollMs = Number(process.env.TURN_POLL_MS ?? 3000);
 
-    let r: any;
+    // 1) Lanzar el prompt en modo async (vuelve enseguida).
     try {
-      r = await this.client.session.prompt({
+      await (this.client as any).session.promptAsync({
         path: { id: sessionId },
         body: { agent, parts: [{ type: 'text', text }] },
-        signal: controller.signal,
-      } as any);
+      });
     } catch (err: any) {
-      clearTimeout(timer);
-      const aborted = controller.signal.aborted;
-      return {
-        text: '',
-        signal: null,
-        tokensIn: 0,
-        tokensOut: 0,
-        cost: 0,
-        error: aborted
-          ? `turno abortado por timeout (${timeoutMs} ms)`
-          : err?.message ?? 'error de red en prompt',
-      };
+      return { text: '', signal: null, tokensIn: 0, tokensOut: 0, cost: 0, error: err?.message ?? 'error al lanzar prompt_async' };
     }
-    clearTimeout(timer);
 
-    const res = r.data ?? r;
-    const info = res.info ?? {};
-    const parts: any[] = res.parts ?? [];
+    // 2) Sondear el estado de la sesión hasta que quede idle (o timeout).
+    const deadline = Date.now() + timeoutMs;
+    // margen inicial para que la sesión pase a 'busy' antes de comprobar idle
+    await sleep(Math.min(pollMs, 1500));
+    while (Date.now() < deadline) {
+      let busy = false;
+      try {
+        const st: any = await (this.client as any).session.status();
+        const map = st.data ?? st ?? {};
+        busy = map?.[sessionId]?.type === 'busy';
+      } catch {
+        /* fallo transitorio al consultar estado: reintenta */
+      }
+      if (!busy) break;
+      await sleep(pollMs);
+    }
+    if (Date.now() >= deadline) {
+      return { text: '', signal: null, tokensIn: 0, tokensOut: 0, cost: 0, error: `turno abortado por timeout (${timeoutMs} ms)` };
+    }
+
+    // 3) Leer el último mensaje del asistente de la sesión.
+    let msgs: any[];
+    try {
+      const r: any = await (this.client as any).session.messages({ path: { id: sessionId } });
+      msgs = (r.data ?? r) as any[];
+    } catch (err: any) {
+      return { text: '', signal: null, tokensIn: 0, tokensOut: 0, cost: 0, error: err?.message ?? 'error al leer mensajes' };
+    }
+
+    const assistants = (msgs ?? []).filter((m) => (m.info?.role ?? m.role) === 'assistant');
+    const last = assistants[assistants.length - 1];
+    if (!last) {
+      return { text: '', signal: null, tokensIn: 0, tokensOut: 0, cost: 0, error: 'sin respuesta del asistente' };
+    }
+    const info = last.info ?? last;
+    const parts: any[] = last.parts ?? [];
 
     const fullText = parts
       .filter((p) => p?.type === 'text' && typeof p.text === 'string')
@@ -121,7 +144,7 @@ export class OpencodeClient {
       tokensIn: tokens.input ?? 0,
       tokensOut: tokens.output ?? 0,
       cost: info.cost ?? 0,
-      error: info.error ? info.error?.data?.message ?? 'unknown error' : null,
+      error: info.error ? (info.error?.data?.message ?? 'unknown error') : null,
     };
   }
 
