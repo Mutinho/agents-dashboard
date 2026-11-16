@@ -79,7 +79,7 @@ export async function prepareWorkspace(opts: {
         continue;
       }
       try {
-        await exec('git', ['clone', '--depth', '1', url, dest], { timeout: 120_000 });
+        await exec('git', ['clone', url, dest], { timeout: 120_000 });
         clonedRepos.push(url);
       } catch (err: any) {
         warnings.push(`No se pudo clonar ${url}: ${err?.stderr ?? err?.message ?? 'error'}`);

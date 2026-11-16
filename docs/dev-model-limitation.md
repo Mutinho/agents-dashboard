@@ -111,3 +111,23 @@ en openrouter.ai antes de fijar nada.
 
 - Los **slugs y precios exactos** dependen de lo que esté habilitado en **tu** cuenta de OpenRouter y del momento. Verifícalos antes de fijarlos.
 - Conviene una prueba A/B: misma conversación con DeepSeek Flash vs el modelo elegido para el Dev, comparando **tasa de éxito** y **coste por conversación completada** (no coste por token).
+
+---
+
+## 6. Actualización (2026-11-16): `bash` reactivado
+
+La decisión de la sección 1.b (`bash: deny` en todos los agentes) **queda superada**. Con el patrón
+**async + polling** (`promptAsync` + `session.status`) y el permiso `external_directory: allow`,
+las tool-calls de `bash` completan con normalidad (verificado: turno de 14 s, tool `completed`).
+El cuelgue original ya no se reproduce.
+
+Estado actual:
+- **Dev**: `bash` permitido. Bloqueados por regla: `git push*`, `rm -rf*`, `sudo*`. El prompt además prohíbe push (el humano publica).
+- **Validador**: `bash` para comprobaciones de solo lectura (git status/log/tag, build, lint, tests). Bloqueados: `git push*`, `git commit*`, `git checkout*`, `rm *`, `sudo*`.
+- PO y UX siguen sin `bash`.
+- Los repos GitHub se clonan **completos** (sin `--depth 1`) para que ramas/tags/rollback tengan historial.
+
+Verificado E2E con un repo desechable: rama + commit + tag anotado creados por el Dev y comprobados por el Validador con git real; `master` intacta y sin push.
+
+Riesgos a vigilar: los comandos corren como root dentro del contenedor con `/projects` en lectura/escritura, así que
+conviene trabajar con repos bajo git. Los servidores que no terminan (`npm run dev`) no deben lanzarse desde un turno.

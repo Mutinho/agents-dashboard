@@ -452,7 +452,7 @@ Además del modo "vacío" (los agentes crean de cero), un workspace puede apunta
 - **Fuente del workspace** (elegible al crearlo en el dashboard):
   - `empty`: carpeta nueva bajo la raíz.
   - `local`: una subcarpeta **existente** bajo la raíz (validada con anti path-traversal).
-  - `github`: **uno o varios** repos públicos que el orquestador **clona** (`git clone --depth 1`) dentro de `/projects/<slug>/`.
+  - `github`: **uno o varios** repos públicos que el orquestador **clona** (`git clone`) dentro de `/projects/<slug>/`.
 - Los agentes trabajan en **lectura/escritura** sobre esa ruta; los ficheros creados aparecen en tu disco real.
 - **git** en la imagen del orquestador + CA corporativa (`GIT_SSL_CAINFO`) para clonar a través del proxy Zscaler.
 
@@ -532,7 +532,7 @@ Diseño adoptado para que el sistema sea **portable** entre un PC corporativo y 
 > **Aprendizajes clave (aplicados):**
 > - El fetch nativo de Node (undici) aborta turnos largos a los ~5 min (`HeadersTimeoutError`). El cliente amplía `headersTimeout`/`bodyTimeout` a 30 min (turnos de agentes que escriben ficheros y ejecutan tests son largos).
 > - Aislamiento: el pipeline inyecta el `workspace.path` en el contexto para que los agentes trabajen solo en su directorio.
-> - En modo autónomo el permiso `bash: ask` cuelga el turno (nadie aprueba). Dev/Validador usan `bash: allow` dentro del workspace aislado.
+> - En modo autónomo el permiso `bash: ask` cuelga el turno (nadie aprueba). Dev/Validador usan `bash` (ver docs/dev-model-limitation.md §6: reactivado con async + deny de push/rm -rf/sudo).
 > - Healthcheck de opencode debe incluir basic-auth (`-u`), o marca `unhealthy` (401).
 > - Reconstruir el orchestrator con `--no-cache` (Docker cacheaba `COPY src`).
 
