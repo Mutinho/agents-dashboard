@@ -24,7 +24,9 @@ export type MessageType =
   | 'result'
   | 'review'
   | 'decision'
-  | 'system';
+  | 'system'
+  /** Aviso informativo (no es un fallo), p.ej. un comando cortado por el vigilante. */
+  | 'notice';
 
 /** Espacio / proyecto de trabajo. */
 export type WorkspaceSource = 'empty' | 'local' | 'github';
@@ -125,4 +127,6 @@ export interface TurnResult {
   tokensOut: number;
   cost: number;
   error: string | null;
+  /** Avisos del motor durante el turno (p.ej. comandos cortados por colgarse). */
+  notes?: string[];
 }

@@ -116,6 +116,8 @@ services:
       PROJECTS_DIR: /projects
       # Motor Kiro (opcional; solo responde si está levantado el profile 'kiro')
       KIRO_RUNNER_URL: http://kiro:4097
+      # Tope por turno con el motor Kiro (OpenCode usa TURN_TIMEOUT_MS)
+      KIRO_TURN_TIMEOUT_MS: ${KIRO_TURN_TIMEOUT_MS:-1800000}
       # Usuario del host dueño de /projects (los agentes escriben como root; el orquestador lo corrige)
       PROJECTS_UID: ${PROJECTS_UID:-}
       PROJECTS_GID: ${PROJECTS_GID:-}
@@ -163,6 +165,8 @@ services:
       PROJECTS_DIR: /projects
       RUNNER_PORT: 4097
       RUNNER_MAX_CONCURRENT: 6
+      # Vigilante: corta un comando de un agente que pase de este tiempo (el agente continúa)
+      RUNNER_CMD_TIMEOUT_MS: ${RUNNER_CMD_TIMEOUT_MS:-300000}
       # Opcional: autenticación headless alternativa al device flow
       KIRO_API_KEY: ${KIRO_API_KEY:-}
     volumes:

@@ -90,6 +90,11 @@
   padding: 2px 8px; border-radius: 999px;
 }
 
+.msg-system.notice {
+  background: color-mix(in srgb, var(--signal-changes) 12%, var(--color-card));
+  border-color: var(--signal-changes);
+}
+
 .msg-system {
   background: color-mix(in srgb, var(--color-destructive) 12%, var(--color-card));
   border: 1px solid var(--color-destructive);

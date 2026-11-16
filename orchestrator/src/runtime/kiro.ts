@@ -69,7 +69,9 @@ export class KiroRuntime implements AgentRuntime {
 
   async prompt(_sessionId: string, role: AgentRole, text: string, opts: PromptOptions = {}): Promise<TurnResult> {
     const fail = (error: string): TurnResult => ({ text: '', signal: null, tokensIn: 0, tokensOut: 0, cost: 0, error });
-    const timeoutMs = Number(process.env.TURN_TIMEOUT_MS ?? 15 * 60_000);
+    // Kiro no cobra por token en USD: tope por turno más amplio que OpenCode (los comandos colgados
+    // ya los corta el vigilante del runner, así que un turno largo es trabajo real).
+    const timeoutMs = Number(process.env.KIRO_TURN_TIMEOUT_MS ?? 30 * 60_000);
     const pollMs = Number(process.env.TURN_POLL_MS ?? 3000);
     if (!opts.cwd) return fail('Kiro necesita un directorio de trabajo (cwd)');
 
@@ -101,12 +103,15 @@ export class KiroRuntime implements AgentRuntime {
         if (t.status === 'running') continue;
 
         const textOut: string = t.text ?? '';
+        const notes: string[] = (t.killed ?? []).map((k: any) =>
+          `Se cortó un comando que llevaba ${k.seconds}s sin terminar (límite ${k.limitSeconds >= 60 ? `${Math.round(k.limitSeconds / 60)} min` : `${k.limitSeconds} s`}); ` +
+          `el agente recibió el error y pudo continuar: \`${String(k.cmd).replace(/`/g, "'").slice(0, 200)}\``);
         if (t.status !== 'done') {
-          return { ...fail(t.error ?? `turno en estado ${t.status}`), text: textOut };
+          return { ...fail(t.error ?? `turno en estado ${t.status}`), text: textOut, notes };
         }
         const { signal } = parseSignal(textOut);
         // Kiro CLI no expone tokens ni créditos por turno: se registran como "no medido" (0).
-        return { text: textOut, signal, tokensIn: 0, tokensOut: 0, cost: 0, error: null };
+        return { text: textOut, signal, tokensIn: 0, tokensOut: 0, cost: 0, error: null, notes };
       } catch (err: any) {
         if (++consecutiveErrors >= 10) return fail(`se perdió la conexión con kiro-runner: ${err?.message ?? err}`);
       }

@@ -11,7 +11,7 @@
 // no hay estado entre turnos: el orquestador reenvía el contexto completo.
 import http from 'node:http';
 import { spawn, execFile } from 'node:child_process';
-import { existsSync, statSync, readFileSync } from 'node:fs';
+import { existsSync, statSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -20,6 +20,12 @@ const PROJECTS_DIR = process.env.PROJECTS_DIR ?? '/projects';
 const MAX_CONCURRENT = Number(process.env.RUNNER_MAX_CONCURRENT ?? 6);
 const DEFAULT_TIMEOUT_MS = Number(process.env.RUNNER_TURN_TIMEOUT_MS ?? 20 * 60_000);
 const KEEP_MS = 30 * 60_000;
+// Vigilante de comandos: un comando lanzado por un agente (raíz `bash -c ...` colgando de kiro-cli)
+// que pase de este tiempo se mata, solo él y sus hijos; Kiro recibe el error y el agente continúa.
+// Kiro CLI no tiene límite propio por comando, y un comando colgado bloquea el turno entero.
+const CMD_TIMEOUT_MS = Number(process.env.RUNNER_CMD_TIMEOUT_MS ?? 5 * 60_000);
+const WATCHDOG_MS = Number(process.env.RUNNER_WATCHDOG_MS ?? 10_000);
+const CLK_TCK = 100; // getconf CLK_TCK en Linux
 const TOKEN = process.env.RUNNER_TOKEN ?? '';
 
 const MODELS_FILE = process.env.MODELS_FILE ?? '/app/models.json';
@@ -83,7 +89,7 @@ function startTurn({ agent, model, cwd, prompt, timeoutMs }) {
   const t = {
     id, agent, model, cwd,
     status: 'running', exitCode: null,
-    stdout: '', stderr: '', tools: [],
+    stdout: '', stderr: '', tools: [], killed: [],
     startedAt: Date.now(), finishedAt: null,
     error: null,
   };
@@ -150,6 +156,7 @@ function view(t) {
     id: t.id, status: t.status, exitCode: t.exitCode, error: t.error, agent: t.agent, model: t.model ?? null,
     text: strip(t.stdout).trim(),
     tools: t.tools.slice(-40), toolCount: t.tools.length,
+    killed: t.killed,
     startedAt: t.startedAt, finishedAt: t.finishedAt,
     elapsedMs: (t.finishedAt ?? Date.now()) - t.startedAt,
   };
@@ -166,7 +173,7 @@ function health() {
       const value = {
         ok: true, loggedIn,
         identity: loggedIn ? text.split('\n').find((l) => /Logged in/i.test(l)) ?? null : null,
-        running, maxConcurrent: MAX_CONCURRENT,
+        running, maxConcurrent: MAX_CONCURRENT, cmdTimeoutMs: CMD_TIMEOUT_MS,
       };
       healthCache = { at: Date.now(), value };
       ok(value);
@@ -246,6 +253,63 @@ const server = http.createServer(async (req, res) => {
     json(res, 500, { error: String(err?.message ?? err) });
   }
 });
+
+
+// --- vigilante de comandos colgados ---
+/** Tabla de procesos desde /proc: pid -> {ppid, start (ticks desde el arranque), state, cmd}. */
+function procTable() {
+  const rows = new Map();
+  for (const d of readdirSync('/proc')) {
+    if (!/^\d+$/.test(d)) continue;
+    try {
+      const stat = readFileSync(`/proc/${d}/stat`, 'utf8');
+      // el nombre (campo 2) va entre paréntesis y puede tener espacios: partimos tras el último ')'
+      const f = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+      const cmd = readFileSync(`/proc/${d}/cmdline`, 'utf8').replace(/\0/g, ' ').trim();
+      rows.set(Number(d), { ppid: Number(f[1]), state: f[0], start: Number(f[19]), cmd });
+    } catch { /* el proceso terminó mientras leíamos */ }
+  }
+  return rows;
+}
+
+const isKiro = (cmd) => /(^|\/)kiro-cli/.test((cmd || '').split(' ')[0]);
+
+function watchdogTick() {
+  if (running === 0) return;
+  let table;
+  try { table = procTable(); } catch { return; }
+  const uptime = Number(readFileSync('/proc/uptime', 'utf8').split(' ')[0]);
+  const children = new Map();
+  for (const [pid, r] of table) {
+    if (!children.has(r.ppid)) children.set(r.ppid, []);
+    children.get(r.ppid).push(pid);
+  }
+  const subtree = (root) => {
+    const out = []; const stack = [root];
+    while (stack.length) { const p = stack.pop(); out.push(p); stack.push(...(children.get(p) ?? [])); }
+    return out;
+  };
+  for (const t of turns.values()) {
+    if (t.status !== 'running' || !t.child?.pid) continue;
+    t.killedPids ??= new Set();
+    // raíces de herramientas: procesos no-Kiro cuyo padre es un proceso de Kiro de este turno
+    for (const pid of subtree(t.child.pid)) {
+      const r = table.get(pid);
+      if (!r || r.state === 'Z' || isKiro(r.cmd) || t.killedPids.has(pid)) continue;
+      const parent = table.get(r.ppid);
+      if (!parent || !isKiro(parent.cmd)) continue;
+      const ageS = uptime - r.start / CLK_TCK;
+      if (ageS * 1000 < CMD_TIMEOUT_MS) continue;
+      const victims = subtree(pid);
+      for (const v of victims) { t.killedPids.add(v); try { process.kill(v, 'SIGTERM'); } catch {} }
+      setTimeout(() => { for (const v of victims) { try { process.kill(v, 'SIGKILL'); } catch {} } }, 5000).unref();
+      const cmd = r.cmd.replace(/^(\/bin\/)?bash -c /, '').slice(0, 240);
+      t.killed.push({ cmd, seconds: Math.round(ageS), limitSeconds: Math.round(CMD_TIMEOUT_MS / 1000) });
+      console.log(`[watchdog] turno ${t.id}: cortado tras ${Math.round(ageS)}s -> ${cmd}`);
+    }
+  }
+}
+setInterval(watchdogTick, WATCHDOG_MS).unref();
 
 // GC de turnos terminados
 setInterval(() => {

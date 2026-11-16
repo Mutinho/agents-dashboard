@@ -93,6 +93,15 @@ export class PipelineStrategy {
     const handleResult = async (role: string, result: TurnResult): Promise<boolean> => {
       // Lo que el agente haya escrito pasa a ser del usuario del host (los contenedores corren como root).
       await fixOwnership(workspacePath);
+      // Avisos del motor (p.ej. comandos cortados): visibles en la conversación, no son un fallo.
+      if (result.notes?.length) {
+        await repos.addMessage({
+          conversationId: cid, fromInstance: 'system', toInstances: [], type: 'notice',
+          content: `ℹ️ **${ROLE_NAME[role as AgentRole] ?? role}**: ` + result.notes.join('\n\n'),
+          signal: null, artifacts: [], tokensIn: 0, tokensOut: 0, costEstimate: 0,
+        });
+        emit?.('message.created', { conversationId: cid, role: 'system', signal: null });
+      }
       if (result.error) {
         await repos.addMessage({
           conversationId: cid, fromInstance: 'system', toInstances: [], type: 'system',
@@ -294,6 +303,7 @@ export class PipelineStrategy {
       tokensOut: results.reduce((a, r) => a + r.tokensOut, 0),
       cost: results.reduce((a, r) => a + r.cost, 0),
       error: allErrored ? (errored[0]?.error ?? 'todas las instancias Dev fallaron') : null,
+      notes: results.flatMap((r) => r.notes ?? []),
     };
   }
 

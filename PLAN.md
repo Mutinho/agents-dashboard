@@ -500,6 +500,13 @@ del perfil por defecto en su campo `model` (uso interactivo con `kiro-cli --agen
 defecto, `make kiro-agents`. Elección basada en la carga de cada rol y los multiplicadores de créditos, **no** en una
 comparación de calidad entre modelos (solo se ha ejecutado haiku-5.5 en pruebas completas).
 
+**Comandos colgados (vigilante)**: Kiro CLI no tiene límite por comando, y un comando que no termina (p. ej. un script
+de Node que deja el proceso abierto) bloqueaba el turno hasta el tope y se perdía. El runner revisa cada 10 s los procesos
+de cada turno; si un comando lanzado por el agente (raíz `bash -c ...` bajo `kiro-cli`) pasa de `RUNNER_CMD_TIMEOUT_MS`
+(5 min), mata solo ese comando y sus hijos: Kiro recibe el error y el agente continúa. La conversación muestra un aviso
+(mensaje `notice`, en ámbar). Los prompts de Dev y Validador piden además usar `timeout` en scripts y tests.
+Tope por turno con Kiro: `KIRO_TURN_TIMEOUT_MS` (30 min); con OpenCode sigue `TURN_TIMEOUT_MS` (15 min).
+
 **Limitaciones conocidas**
 - Kiro CLI no expone tokens ni créditos por turno: se registran como "no medido". El presupuesto en USD **no aplica** a Kiro.
 - Los turnos de Kiro son sin estado (el orquestador reenvía el contexto completo en cada turno).
