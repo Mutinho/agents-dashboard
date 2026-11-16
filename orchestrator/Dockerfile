@@ -27,6 +27,9 @@ COPY src ./src
 COPY migrations ./migrations
 RUN npm run build
 
+# Los repos de /projects pertenecen al usuario del host (no a root): git debe aceptarlos
+RUN git config --global --add safe.directory '*'
+
 EXPOSE 8787 8788
 
 CMD ["node", "dist/index.js"]

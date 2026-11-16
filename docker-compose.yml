@@ -116,6 +116,9 @@ services:
       PROJECTS_DIR: /projects
       # Motor Kiro (opcional; solo responde si está levantado el profile 'kiro')
       KIRO_RUNNER_URL: http://kiro:4097
+      # Usuario del host dueño de /projects (los agentes escriben como root; el orquestador lo corrige)
+      PROJECTS_UID: ${PROJECTS_UID:-}
+      PROJECTS_GID: ${PROJECTS_GID:-}
     volumes:
       # Misma raíz de proyectos reales, misma ruta que en opencode.
       - ${PROJECTS_ROOT:-./data/projects}:/projects

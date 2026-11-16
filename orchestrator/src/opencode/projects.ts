@@ -8,6 +8,25 @@ const exec = promisify(execFile);
 // Raíz de proyectos reales dentro del contenedor (montada desde PROJECTS_ROOT del host).
 const PROJECTS_DIR = process.env.PROJECTS_DIR ?? '/projects';
 
+/**
+ * Devuelve la propiedad de un directorio de trabajo al usuario del host.
+ * Los contenedores corren como root, así que todo lo que crean los agentes (ficheros,
+ * node_modules, objetos de git) quedaría a nombre de root y el usuario no podría editarlo.
+ * Configurable con PROJECTS_UID / PROJECTS_GID; si no están definidos no hace nada.
+ * Best-effort: nunca lanza.
+ */
+export async function fixOwnership(path: string): Promise<void> {
+  const uid = process.env.PROJECTS_UID;
+  const gid = process.env.PROJECTS_GID ?? uid;
+  if (!uid || !/^\d+$/.test(uid) || !/^\d+$/.test(gid ?? '')) return;
+  if (!withinRoot(path)) return;
+  try {
+    await exec('chown', ['-R', `${uid}:${gid}`, path], { timeout: 120_000 });
+  } catch (err: any) {
+    console.warn(`[ownership] no se pudo ajustar ${path}: ${err?.message ?? err}`);
+  }
+}
+
 export interface PrepareResult {
   /** Ruta de trabajo dentro del contenedor que verán los agentes. */
   projectPath: string;
@@ -87,5 +106,6 @@ export async function prepareWorkspace(opts: {
     }
   }
 
+  await fixOwnership(base);
   return { projectPath: base, clonedRepos, warnings };
 }

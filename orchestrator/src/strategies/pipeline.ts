@@ -3,6 +3,7 @@ import type { AgentRuntime } from '../runtime/types.js';
 import type { Repos } from '../persistence/repos.js';
 import { snapshot, diffSnapshots } from '../opencode/files.js';
 import { parsePlan } from './signals.js';
+import { fixOwnership } from '../opencode/projects.js';
 
 export interface PipelineDeps {
   /** Motor que ejecuta los turnos (OpenCode o Kiro). */
@@ -50,6 +51,7 @@ export class PipelineStrategy {
           await this.deps.repos.recordFileChanges(conversation.workspaceId, conversation.id, changes);
         }
       } catch { /* trazabilidad best-effort, no rompe el pipeline */ }
+      await fixOwnership(workspacePath);
     }
   }
 
@@ -89,6 +91,8 @@ export class PipelineStrategy {
     // Estado compartido para el control de coste/error/presupuesto por turno.
     // Devuelve true si debe detenerse el pipeline tras el turno.
     const handleResult = async (role: string, result: TurnResult): Promise<boolean> => {
+      // Lo que el agente haya escrito pasa a ser del usuario del host (los contenedores corren como root).
+      await fixOwnership(workspacePath);
       if (result.error) {
         await repos.addMessage({
           conversationId: cid, fromInstance: 'system', toInstances: [], type: 'system',

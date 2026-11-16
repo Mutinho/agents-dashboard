@@ -36,6 +36,9 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 # Directorio de trabajo (se montarán los workspaces aquí)
 WORKDIR /workspaces
 
+# Los repos de /projects pertenecen al usuario del host (no a root): git debe aceptarlos
+RUN git config --global --add safe.directory '*'
+
 EXPOSE 4096
 
 # Arranca el server headless, escuchando en todas las interfaces DENTRO del contenedor.

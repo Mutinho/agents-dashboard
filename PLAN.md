@@ -456,6 +456,12 @@ Además del modo "vacío" (los agentes crean de cero), un workspace puede apunta
 - Los agentes trabajan en **lectura/escritura** sobre esa ruta; los ficheros creados aparecen en tu disco real.
 - **git** en la imagen del orquestador + CA corporativa (`GIT_SSL_CAINFO`) para clonar a través del proxy Zscaler.
 
+> **Propietario de los ficheros**: los contenedores corren como root, así que todo lo que escriben los agentes
+> quedaría a nombre de root y el usuario del host no podría editarlo (p.ej. `npm install` → `EACCES`). El orquestador
+> devuelve la propiedad a `PROJECTS_UID:PROJECTS_GID` (`.env`, salida de `id -u`/`id -g`) tras clonar, tras cada turno
+> y al terminar cada conversación. Las imágenes de OpenCode, Kiro y orquestador configuran `git safe.directory '*'`
+> para seguir operando sobre repos de otro usuario. Arreglo manual: `make fix-perms`.
+>
 > **Permiso clave (`external_directory`)**: para que los agentes puedan leer/escribir en `/projects` sin colgarse, `opencode.jsonc` fija `permission.external_directory: "allow"` y `permission.question: "deny"`. Sin esto, OpenCode pone `external_directory` en `ask` y el agente **se cuelga esperando aprobación** en modo autónomo (causa raíz diagnosticada). Nota: el binario 1.19.5 usa el **esquema V1** de config → `permission` es un **objeto** (`{accion: allow|ask|deny}`), no el array `permissions` de V2.
 >
 > **Verificado E2E**: workspace con repo GitHub público → clonado en `/home/javi/proyects_ia/<slug>/`; una conversación leyó el repo real y escribió `ANALISIS.md` en disco; flujo PO→UX→Dev→Validador a `done`.

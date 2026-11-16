@@ -3,7 +3,7 @@
 
 DC := ./dc.sh
 
-.PHONY: help up up-full up-kiro down ps logs restart-opencode build health kiro-agents kiro-login kiro-logs
+.PHONY: help up up-full up-kiro down ps logs restart-opencode build health kiro-agents kiro-login kiro-logs fix-perms
 
 help:
 	@echo "Targets:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make up-kiro          Levanta todo + el motor Kiro (opcional)"
 	@echo "  make kiro-agents      Regenera los agentes de Kiro desde config/opencode/agents"
 	@echo "  make kiro-login       Login de Kiro en el contenedor (device flow)"
+	@echo "  make fix-perms        Devuelve la propiedad de PROJECTS_ROOT a tu usuario"
 	@echo "  make down             Para y elimina los contenedores"
 	@echo "  make ps               Estado de los servicios"
 	@echo "  make logs             Logs de opencode (follow)"
@@ -56,3 +57,6 @@ health:
 	@set -a; . ./.env; [ -f ./.env.local ] && . ./.env.local; set +a; \
 	curl -fsS -u "$$OPENCODE_SERVER_USERNAME:$$OPENCODE_SERVER_PASSWORD" \
 	  http://127.0.0.1:$${OPENCODE_PORT:-4096}/global/health && echo ""
+
+fix-perms:
+	docker exec ad-orchestrator chown -R $$(id -u):$$(id -g) /projects
