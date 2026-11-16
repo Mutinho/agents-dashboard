@@ -21,3 +21,21 @@ label { font-size: 12px; color: var(--color-muted-foreground); display: block; m
   font-size: 11px; font-weight: 600; color: #000;
   padding: 2px 8px; border-radius: 999px; text-transform: uppercase; flex: none;
 }
+
+.engines { display: flex; gap: 8px; }
+.eng {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 10px 14px; border: 1px solid var(--color-border); background: var(--color-background);
+  color: var(--color-foreground); border-radius: 8px; cursor: pointer; font-family: inherit;
+  transition: all 150ms ease; text-align: left;
+}
+.eng span { font-size: 12px; }
+.eng:hover:not(:disabled) { border-color: var(--color-primary); }
+.eng.active { border-color: var(--color-primary); background: var(--color-muted); }
+.eng:disabled { opacity: 0.45; cursor: not-allowed; }
+.hint { font-size: 12px; margin: 0; }
+.error { color: var(--color-destructive); font-size: 13px; margin: 0; }
+.eng-badge {
+  font-size: 11px; font-family: var(--font-mono); padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--role-ux); color: #f9a8d4; background: color-mix(in srgb, var(--role-ux) 12%, transparent);
+}

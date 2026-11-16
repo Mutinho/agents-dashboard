@@ -55,3 +55,6 @@ dashboard/certs/*.crt
 
 # CA corporativa del orchestrator (no versionar)
 orchestrator/certs/*.crt
+
+# CA corporativa del servicio kiro (no versionar)
+kiro/certs/*.crt

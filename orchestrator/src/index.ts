@@ -6,6 +6,7 @@ import { OpencodeClient } from './opencode/client.js';
 import { RealtimeHub } from './api/realtime.js';
 import { buildApi } from './api/server.js';
 import { createBus } from './bus/bus.js';
+import { KiroRuntime } from './runtime/kiro.js';
 
 async function main() {
   // 1) Migraciones + seed de perfiles.
@@ -36,7 +37,10 @@ async function main() {
   };
 
   // 4) API REST.
-  const app = buildApi({ repos, opencode, emit });
+  // Motor Kiro (opcional): solo se usa si el servicio kiro-runner está levantado.
+  const kiro = new KiroRuntime(process.env.KIRO_RUNNER_URL ?? 'http://kiro:4097', process.env.RUNNER_TOKEN || undefined);
+
+  const app = buildApi({ repos, opencode, kiro, emit });
   const restPort = Number(process.env.ORCH_REST_PORT ?? 8787);
   await app.listen({ host: '0.0.0.0', port: restPort });
   console.log(`[orchestrator] REST en :${restPort}`);

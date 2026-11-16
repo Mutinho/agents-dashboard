@@ -114,6 +114,8 @@ services:
       TURN_TIMEOUT_MS: ${TURN_TIMEOUT_MS:-900000}
       # Raíz de proyectos (dentro del contenedor). Clona repos aquí.
       PROJECTS_DIR: /projects
+      # Motor Kiro (opcional; solo responde si está levantado el profile 'kiro')
+      KIRO_RUNNER_URL: http://kiro:4097
     volumes:
       # Misma raíz de proyectos reales, misma ruta que en opencode.
       - ${PROJECTS_ROOT:-./data/projects}:/projects
@@ -141,3 +143,44 @@ services:
     depends_on:
       - orchestrator
     profiles: ["full"]
+
+  # ---------------------------------------------------------------------------
+  # Kiro runner: segundo motor de agentes (Kiro CLI). OPCIONAL: profile "kiro".
+  #   ./dc.sh --profile full --profile kiro up -d
+  # Requiere kiro-cli instalado en el host (sus binarios se montan en solo lectura).
+  # Red interna únicamente (no se publica puerto). Credenciales en el volumen kiro_data.
+  # ---------------------------------------------------------------------------
+  kiro:
+    build:
+      context: ./kiro
+      dockerfile: Dockerfile
+    container_name: ad-kiro
+    restart: unless-stopped
+    environment:
+      PROJECTS_DIR: /projects
+      RUNNER_PORT: 4097
+      RUNNER_MAX_CONCURRENT: 6
+      # Opcional: autenticación headless alternativa al device flow
+      KIRO_API_KEY: ${KIRO_API_KEY:-}
+    volumes:
+      # Binarios de kiro-cli del host (solo lectura). Ajusta KIRO_BIN_DIR si no es ~/.local/bin.
+      - ${KIRO_BIN_DIR:-${HOME}/.local/bin}/kiro-cli:/opt/kiro/bin/kiro-cli:ro
+      - ${KIRO_BIN_DIR:-${HOME}/.local/bin}/kiro-cli-chat:/opt/kiro/bin/kiro-cli-chat:ro
+      - ${KIRO_BIN_DIR:-${HOME}/.local/bin}/kiro-cli-term:/opt/kiro/bin/kiro-cli-term:ro
+      # Agentes (generados con scripts/gen-kiro-agents.mjs) y skills compartidas con OpenCode
+      - ./config/kiro/agents:/root/.kiro/agents:ro
+      - ./config/opencode/skills:/root/.kiro/skills:ro
+      # Credenciales de Kiro (login por device flow, una sola vez)
+      - kiro_data:/root/.local/share/kiro-cli
+      # Misma raíz de proyectos que opencode y orchestrator
+      - ${PROJECTS_ROOT:-./data/projects}:/projects
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4097/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 20s
+      retries: 5
+      start_period: 10s
+    profiles: ["kiro"]
+
+volumes:
+  kiro_data:

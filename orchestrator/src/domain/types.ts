@@ -78,6 +78,10 @@ export interface Conversation {
   maxParallel: number;
   /** Presupuesto en USD; al superarse la conversación pasa a 'paused'. 0 = sin límite. */
   budgetUsd: number;
+  /** Motor que ejecuta los turnos: OpenCode (OpenRouter) o Kiro CLI. */
+  runtime: 'opencode' | 'kiro';
+  /** Modelo opcional para el motor (NULL = el de cada agente / por defecto). */
+  model: string | null;
   createdAt: string;
   finishedAt: string | null;
 }

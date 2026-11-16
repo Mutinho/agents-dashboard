@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import type {
   AgentProfile, Conversation, AgentMessage, Metrics, Health, Workspace,
-  FileNode, FileProvenance, FileContent,
+  FileNode, FileProvenance, FileContent, Runtimes,
 } from './models.js';
 
 // nginx hace proxy de /api -> orquestador y de /ws -> WebSocket del orquestador.
@@ -12,6 +12,10 @@ const API = '/api';
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
+
+  runtimes() {
+    return firstValueFrom(this.http.get<Runtimes>(`${API}/runtimes`));
+  }
 
   health() {
     return firstValueFrom(this.http.get<Health>(`${API}/health`));
@@ -76,6 +80,7 @@ export class ApiService {
   createConversation(workspaceId: string, body: {
     title?: string; goal: string; strategy?: string;
     maxIterations?: number; parallelDev?: number; maxParallel?: number; budgetUsd?: number;
+    runtime?: 'opencode' | 'kiro'; model?: string;
   }) {
     return firstValueFrom(
       this.http.post<Conversation>(`${API}/workspaces/${workspaceId}/conversations`, body),

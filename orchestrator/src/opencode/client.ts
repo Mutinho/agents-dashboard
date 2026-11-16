@@ -2,6 +2,7 @@ import { createOpencodeClient } from '@opencode-ai/sdk';
 import { Agent, setGlobalDispatcher } from 'undici';
 import type { AgentRole, TurnResult } from '../domain/types.js';
 import { parseSignal } from '../strategies/signals.js';
+import type { AgentRuntime, PromptOptions } from '../runtime/types.js';
 
 // Los turnos de agentes (escribir ficheros, ejecutar tests) pueden durar varios
 // minutos. El fetch nativo de Node (undici) aborta a los ~5 min por defecto
@@ -30,7 +31,8 @@ type Client = ReturnType<typeof createOpencodeClient>;
  * crea la sesión, envía prompts dirigidos a un agente concreto y lee la
  * respuesta (texto + señal de control + métricas).
  */
-export class OpencodeClient {
+export class OpencodeClient implements AgentRuntime {
+  readonly kind = 'opencode' as const;
   private readonly client: Client;
 
   constructor(cfg: OpencodeConfig) {
@@ -58,7 +60,7 @@ export class OpencodeClient {
   }
 
   /** Crea una sesión de OpenCode y devuelve su id. */
-  async createSession(title: string): Promise<string> {
+  async createSession(title: string, _role?: AgentRole): Promise<string> {
     const r: any = await this.client.session.create({ body: { title } });
     const s = r.data ?? r;
     return s.id as string;
@@ -78,6 +80,7 @@ export class OpencodeClient {
     sessionId: string,
     agent: AgentRole,
     text: string,
+    _opts?: PromptOptions,
   ): Promise<TurnResult> {
     const timeoutMs = Number(process.env.TURN_TIMEOUT_MS ?? 15 * 60_000);
     const pollMs = Number(process.env.TURN_POLL_MS ?? 3000);

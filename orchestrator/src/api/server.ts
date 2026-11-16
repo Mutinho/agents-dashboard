@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import type { Repos } from '../persistence/repos.js';
 import type { OpencodeClient } from '../opencode/client.js';
+import type { KiroRuntime } from '../runtime/kiro.js';
+import type { AgentRuntime } from '../runtime/types.js';
 import { PipelineStrategy } from '../strategies/pipeline.js';
 import { prepareWorkspace } from '../opencode/projects.js';
 import { readFileContent, resolveFile } from '../opencode/files.js';
@@ -10,6 +12,8 @@ import { readFile, stat } from 'node:fs/promises';
 export interface ApiDeps {
   repos: Repos;
   opencode: OpencodeClient;
+  /** Motor Kiro (opcional: solo si el servicio kiro-runner está configurado). */
+  kiro?: KiroRuntime;
   emit: (event: string, payload: unknown) => void;
 }
 
@@ -17,11 +21,24 @@ export function buildApi(deps: ApiDeps) {
   const app = Fastify({ logger: true });
   app.register(cors, { origin: true });
 
-  const { repos, opencode, emit } = deps;
+  const { repos, opencode, kiro, emit } = deps;
 
   app.get('/api/health', async () => {
     const oc = await opencode.health().catch(() => ({ healthy: false, version: '?' }));
     return { ok: true, opencode: oc };
+  });
+
+  // Motores disponibles (para el selector del dashboard).
+  app.get('/api/runtimes', async () => {
+    const oc = await opencode.health().catch(() => ({ healthy: false, version: '?' }));
+    const k = kiro ? await kiro.status() : null;
+    return {
+      opencode: { available: oc.healthy, version: oc.version },
+      kiro: k
+        ? { available: k.available && k.loggedIn, loggedIn: k.loggedIn, identity: k.identity,
+            defaultModel: k.defaultModel, models: k.models, error: k.error ?? null }
+        : { available: false, loggedIn: false, identity: null, defaultModel: 'auto', models: [], error: 'servicio kiro no configurado' },
+    };
   });
 
   app.get('/api/agents', async () => repos.listProfiles());
@@ -164,8 +181,12 @@ export function buildApi(deps: ApiDeps) {
       parallelDev?: number;
       maxParallel?: number;
       budgetUsd?: number;
+      runtime?: string;
+      model?: string;
     };
     if (!body.goal) return reply.code(400).send({ error: 'goal requerido' });
+    const runtime = body.runtime === 'kiro' ? 'kiro' : 'opencode';
+    if (body.model && !/^[a-z0-9][a-z0-9.\-_]{0,60}$/i.test(body.model)) return reply.code(400).send({ error: 'modelo inválido' });
     return repos.createConversation(
       id,
       body.title ?? 'Conversación',
@@ -175,6 +196,8 @@ export function buildApi(deps: ApiDeps) {
       body.parallelDev ?? 1,
       body.maxParallel ?? 2,
       body.budgetUsd ?? 0,
+      runtime,
+      body.model || null,
     );
   });
 
@@ -222,7 +245,15 @@ export function buildApi(deps: ApiDeps) {
     const ws = await repos.getWorkspace(conv.workspaceId);
     const workspacePath = ws?.projectPath ?? ws?.path ?? '/workspaces';
 
-    const strategy = new PipelineStrategy({ opencode, repos, emit });
+    // Elegir el motor de la conversación; Kiro exige servicio disponible y sesión iniciada.
+    let runtime: AgentRuntime = opencode;
+    if (conv.runtime === 'kiro') {
+      if (!kiro) return reply.code(400).send({ error: 'El motor Kiro no está configurado (levanta el profile "kiro").' });
+      const ks = await kiro.status();
+      if (!ks.available || !ks.loggedIn) return reply.code(400).send({ error: `Kiro no disponible: ${ks.error ?? 'sin sesión iniciada'}` });
+      runtime = kiro;
+    }
+    const strategy = new PipelineStrategy({ runtime, repos, emit });
     strategy.run(conv, workspacePath).catch(async (err) => {
       app.log.error({ err }, 'pipeline falló');
       // Mensaje de sistema visible + marcar failed (no dejar huérfana en running).

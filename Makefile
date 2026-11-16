@@ -3,12 +3,15 @@
 
 DC := ./dc.sh
 
-.PHONY: help up up-full down ps logs restart-opencode build health
+.PHONY: help up up-full up-kiro down ps logs restart-opencode build health kiro-agents kiro-login kiro-logs
 
 help:
 	@echo "Targets:"
 	@echo "  make up               Levanta solo opencode"
 	@echo "  make up-full          Levanta todo (opencode + db + broker)"
+	@echo "  make up-kiro          Levanta todo + el motor Kiro (opcional)"
+	@echo "  make kiro-agents      Regenera los agentes de Kiro desde config/opencode/agents"
+	@echo "  make kiro-login       Login de Kiro en el contenedor (device flow)"
 	@echo "  make down             Para y elimina los contenedores"
 	@echo "  make ps               Estado de los servicios"
 	@echo "  make logs             Logs de opencode (follow)"
@@ -22,8 +25,20 @@ up:
 up-full:
 	$(DC) --profile full up -d
 
+up-kiro: kiro-agents
+	$(DC) --profile full --profile kiro up -d
+
+kiro-agents:
+	node scripts/gen-kiro-agents.mjs
+
+kiro-login:
+	$(DC) --profile kiro run --rm kiro kiro-cli login --use-device-flow
+
+kiro-logs:
+	$(DC) --profile kiro logs -f kiro
+
 down:
-	$(DC) --profile full down
+	$(DC) --profile full --profile kiro down
 
 ps:
 	$(DC) ps

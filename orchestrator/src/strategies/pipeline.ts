@@ -1,11 +1,12 @@
 import type { AgentRole, Conversation, ControlSignal, TurnResult } from '../domain/types.js';
-import type { OpencodeClient } from '../opencode/client.js';
+import type { AgentRuntime } from '../runtime/types.js';
 import type { Repos } from '../persistence/repos.js';
 import { snapshot, diffSnapshots } from '../opencode/files.js';
 import { parsePlan } from './signals.js';
 
 export interface PipelineDeps {
-  opencode: OpencodeClient;
+  /** Motor que ejecuta los turnos (OpenCode o Kiro). */
+  runtime: AgentRuntime;
   repos: Repos;
   /** callback para emitir eventos en vivo (WS). */
   emit?: (event: string, payload: unknown) => void;
@@ -30,6 +31,8 @@ const ROLE_NAME: Record<AgentRole, string> = {
  */
 export class PipelineStrategy {
   private devInstances: { label: string; sessionId: string }[] = [];
+  /** Directorio de trabajo del workspace (para motores que lo necesitan por turno). */
+  private cwd = '/workspaces';
 
   constructor(private readonly deps: PipelineDeps) {}
 
@@ -51,7 +54,8 @@ export class PipelineStrategy {
   }
 
   private async runPipeline(conversation: Conversation, workspacePath = '/workspaces'): Promise<void> {
-    const { opencode, repos, emit } = this.deps;
+    this.cwd = workspacePath;
+    const { runtime, repos, emit } = this.deps;
     const cid = conversation.id;
 
     await repos.setConversationStatus(cid, 'running');
@@ -60,7 +64,7 @@ export class PipelineStrategy {
     // Sesión por rol. Para Dev en paralelo, N instancias (dev#1..devN).
     const sessions = new Map<AgentRole, string>();
     for (const role of PIPELINE) {
-      const sid = await opencode.createSession(`${conversation.title} · ${role}`);
+      const sid = await runtime.createSession(`${conversation.title} · ${role}`, role);
       sessions.set(role, sid);
       await repos.upsertParticipant(cid, role, role, sid);
     }
@@ -68,7 +72,7 @@ export class PipelineStrategy {
     if (conversation.parallelDev > 1) {
       for (let i = 1; i <= conversation.parallelDev; i++) {
         const label = `dev#${i}`;
-        const sid = await opencode.createSession(`${conversation.title} · ${label}`);
+        const sid = await runtime.createSession(`${conversation.title} · ${label}`, 'dev');
         devInstances.push({ label, sessionId: sid });
         await repos.upsertParticipant(cid, 'dev', label, sid);
       }
@@ -180,9 +184,9 @@ export class PipelineStrategy {
     context: string,
     feedback: string,
   ): Promise<TurnResult> {
-    const { opencode, repos, emit } = this.deps;
+    const { runtime, repos, emit } = this.deps;
     const prompt = this.buildPrompt(role, context, feedback);
-    const result = await opencode.prompt(sessionId, role, prompt);
+    const result = await runtime.prompt(sessionId, role, prompt, { cwd: this.cwd, model: conversation.model });
 
     await repos.addMessage({
       conversationId: conversation.id,
@@ -218,7 +222,7 @@ export class PipelineStrategy {
     context: string,
     feedback: string,
   ): Promise<TurnResult> {
-    const { opencode, repos, emit } = this.deps;
+    const { runtime, repos, emit } = this.deps;
     const n = this.devInstances.length;
     const limit = Math.max(1, Math.min(conversation.maxParallel, n));
 
@@ -244,7 +248,7 @@ export class PipelineStrategy {
         const i = next++;
         const inst = this.devInstances[i];
         emit?.('turn.started', { conversationId: conversation.id, role: 'dev', instance: inst.label });
-        const r = await opencode.prompt(inst.sessionId, 'dev', makePrompt(i));
+        const r = await runtime.prompt(inst.sessionId, 'dev', makePrompt(i), { cwd: this.cwd, model: conversation.model });
         results[i] = r;
         await repos.addMessage({
           conversationId: conversation.id,

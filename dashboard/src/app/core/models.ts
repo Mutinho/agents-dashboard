@@ -41,6 +41,8 @@ export interface Conversation {
   parallelDev: number;
   maxParallel: number;
   budgetUsd: number;
+  runtime: 'opencode' | 'kiro';
+  model: string | null;
   createdAt: string;
   finishedAt: string | null;
 }
@@ -101,4 +103,26 @@ export interface FileContent {
   binary: boolean;
   content: string | null;
   language: string;
+}
+
+export interface KiroModel {
+  id: string;
+  name: string;
+  description: string;
+  multiplier: number;
+  unit: string;
+  contextTokens: number;
+}
+
+/** Motores de agentes disponibles (para el selector al crear una conversación). */
+export interface Runtimes {
+  opencode: { available: boolean; version: string };
+  kiro: {
+    available: boolean;
+    loggedIn: boolean;
+    identity: string | null;
+    defaultModel: string;
+    models: KiroModel[];
+    error: string | null;
+  };
 }

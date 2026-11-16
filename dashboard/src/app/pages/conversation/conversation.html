@@ -35,7 +35,8 @@
       <div class="chip"><span class="muted">Mensajes</span> <b class="mono">{{ m.messages }}</b></div>
       <div class="chip"><span class="muted">Tokens</span> <b class="mono">{{ m.tokensIn }}/{{ m.tokensOut }}</b></div>
       <div class="chip"><span class="muted">Coste</span> <b class="mono">{{ usd(m.costUsd) }}</b></div>
-      <div class="chip"><span class="muted">Presupuesto</span> <b class="mono">{{ c.budgetUsd ? usd(c.budgetUsd) : '∞' }}</b></div>
+      <div class="chip"><span class="muted">Motor</span> <b class="mono">{{ c.runtime === 'kiro' ? 'Kiro' + (c.model ? ' · ' + c.model : '') : 'OpenCode' }}</b></div>
+      <div class="chip"><span class="muted">Presupuesto</span> <b class="mono">{{ c.runtime === 'kiro' ? 'n/a (créditos Kiro)' : (c.budgetUsd ? usd(c.budgetUsd) : '∞') }}</b></div>
     </section>
   }
 
