@@ -460,6 +460,36 @@ Además del modo "vacío" (los agentes crean de cero), un workspace puede apunta
 >
 > **Verificado E2E**: workspace con repo GitHub público → clonado en `/home/javi/proyects_ia/<slug>/`; una conversación leyó el repo real y escribió `ANALISIS.md` en disco; flujo PO→UX→Dev→Validador a `done`.
 
+### 8.3 Segundo motor de agentes: Kiro CLI (opcional)
+
+Cada conversación elige su **motor**: `opencode` (OpenRouter, pago por tokens) o `kiro` (Kiro CLI, créditos de Kiro).
+
+- **Servicio `kiro`** (profile `kiro`, red interna): `kiro/server.mjs` ejecuta cada turno con
+  `kiro-cli chat --no-interactive --agent ad-<rol>` (prompt por stdin). API asíncrona `POST /turn` + `GET /turn/:id`
+  (mismo patrón que OpenCode: lanzar y sondear, sin conexiones largas). `GET /health`, `GET /models`.
+- **Binarios** de `kiro-cli` montados desde el host en solo lectura (`KIRO_BIN_DIR`); no se versionan.
+  Corre en el contenedor con el mismo aislamiento que OpenCode (`/projects` compartido).
+- **Agentes**: `config/kiro/agents/ad-{po,ux,dev,validator}.json`, generados por `scripts/gen-kiro-agents.mjs`
+  desde `config/opencode/agents/*.md` (la fuente de verdad sigue siendo el `.md`). Permisos equivalentes:
+  PO sin escritura/shell; UX sin shell; Dev con shell sin `git push`/`rm -rf`/`sudo`; Validador solo comprobaciones.
+  Skills compartidas montando `config/opencode/skills` en `~/.kiro/skills`.
+- **Autenticación**: `make kiro-login` (device flow; credenciales en el volumen `kiro_data`) o `KIRO_API_KEY`.
+  Es una sesión independiente de la del host. **Atención**: si la cuenta es corporativa (IAM Identity Center),
+  los prompts y el código pasan por ese tenant; úsalo solo si estás autorizado.
+- **Orquestador**: interfaz `AgentRuntime` (`runtime/types.ts`); `OpencodeClient` y `KiroRuntime` la implementan;
+  el pipeline no depende de ningún motor. Migración 006 (`conversations.runtime/model`); `GET /api/runtimes`.
+- **Dashboard**: selector de motor y de modelo (con multiplicador de créditos) al crear la conversación.
+
+**Limitaciones conocidas**
+- Kiro CLI no expone tokens ni créditos por turno: se registran como "no medido". El presupuesto en USD **no aplica** a Kiro.
+- Los turnos de Kiro son sin estado (el orquestador reenvía el contexto completo en cada turno).
+- `POST /conversations/:id/stop` marca la conversación como pausada pero no cancela el turno en curso del runner
+  (ocurre igual con OpenCode); el tope por turno (`TURN_TIMEOUT_MS`) lo acota.
+
+**Verificado**: conversación PO→Dev→Validador con `claude-haiku-5.5` sobre un repo desechable: rama, commit y tag
+anotado creados y comprobados con git (`master` intacta, sin push). La regla `sudo .*` se verificó rechazada por la
+herramienta; el bloqueo de `rm -rf` solo se verificó a nivel de prompt.
+
 ---
 
 ## 9. Control de costes (OpenRouter / tokens)

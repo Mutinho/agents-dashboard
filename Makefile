@@ -32,7 +32,7 @@ kiro-agents:
 	node scripts/gen-kiro-agents.mjs
 
 kiro-login:
-	$(DC) --profile kiro run --rm kiro kiro-cli login --use-device-flow
+	./scripts/kiro-login.sh
 
 kiro-logs:
 	$(DC) --profile kiro logs -f kiro
