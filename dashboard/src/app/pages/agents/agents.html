@@ -23,6 +23,12 @@
           <span class="label muted">Modelo</span>
           <code class="mono model">{{ a.defaultModel }}</code>
         </div>
+        @if (kiroModel(a.key); as km) {
+          <div class="row">
+            <span class="label muted">Modelo (Kiro)</span>
+            <code class="mono model">{{ km }}</code>
+          </div>
+        }
 
         <div class="row">
           <span class="label muted">Skills</span>

@@ -43,6 +43,7 @@ export interface Conversation {
   budgetUsd: number;
   runtime: 'opencode' | 'kiro';
   model: string | null;
+  profile: string | null;
   createdAt: string;
   finishedAt: string | null;
 }
@@ -114,6 +115,13 @@ export interface KiroModel {
   contextTokens: number;
 }
 
+export interface KiroProfile {
+  name: string;
+  description: string;
+  /** modelo por rol: po / ux / dev / validator */
+  models: Record<string, string>;
+}
+
 /** Motores de agentes disponibles (para el selector al crear una conversación). */
 export interface Runtimes {
   opencode: { available: boolean; version: string };
@@ -123,6 +131,8 @@ export interface Runtimes {
     identity: string | null;
     defaultModel: string;
     models: KiroModel[];
+    profiles: KiroProfile[];
+    defaultProfile: string | null;
     error: string | null;
   };
 }

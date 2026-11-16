@@ -80,7 +80,7 @@ export class ApiService {
   createConversation(workspaceId: string, body: {
     title?: string; goal: string; strategy?: string;
     maxIterations?: number; parallelDev?: number; maxParallel?: number; budgetUsd?: number;
-    runtime?: 'opencode' | 'kiro'; model?: string;
+    runtime?: 'opencode' | 'kiro'; model?: string; profile?: string;
   }) {
     return firstValueFrom(
       this.http.post<Conversation>(`${API}/workspaces/${workspaceId}/conversations`, body),

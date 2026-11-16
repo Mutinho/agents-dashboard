@@ -21,13 +21,33 @@
       </button>
     </div>
     @if (runtime === 'kiro' && runtimes(); as rt) {
-      <label>Modelo de Kiro</label>
-      <select [(ngModel)]="model">
-        <option value="">Por defecto ({{ rt.kiro.defaultModel }})</option>
-        @for (m of rt.kiro.models; track m.id) {
-          <option [value]="m.id">{{ m.name }} · {{ m.multiplier }}x créditos</option>
+      <div class="mode-tabs">
+        <button [class.active]="kiroMode === 'profile'" (click)="kiroMode = 'profile'">Perfil por rol (recomendado)</button>
+        <button [class.active]="kiroMode === 'single'" (click)="kiroMode = 'single'">Modelo único</button>
+      </div>
+      @if (kiroMode === 'profile') {
+        <select [(ngModel)]="profile">
+          @for (p of rt.kiro.profiles; track p.name) {
+            <option [value]="p.name === rt.kiro.defaultProfile ? '' : p.name">{{ p.name }}{{ p.name === rt.kiro.defaultProfile ? ' (por defecto)' : '' }}</option>
+          }
+        </select>
+        @if (selectedProfile(); as sp) {
+          <p class="hint muted">{{ sp.description }}</p>
+          <div class="role-models">
+            @for (r of roles; track r) {
+              <span class="rm"><b>{{ r }}</b> {{ sp.models[r] }}</span>
+            }
+          </div>
         }
-      </select>
+      } @else {
+        <select [(ngModel)]="model">
+          <option value="">Por defecto ({{ rt.kiro.defaultModel }})</option>
+          @for (m of rt.kiro.models; track m.id) {
+            <option [value]="m.id">{{ m.name }} · {{ m.multiplier }}x créditos</option>
+          }
+        </select>
+        <p class="hint muted">Todos los roles usarán este modelo.</p>
+      }
     }
     @if (!kiroReady() && runtimes()?.kiro?.error) {
       <p class="hint muted">Kiro: {{ runtimes()?.kiro?.error }}</p>
@@ -67,7 +87,7 @@
             <a [routerLink]="['/conversations', c.id]">
               <span class="badge" [style.background]="statusColor(c.status)">{{ c.status }}</span>
               <span class="title">{{ c.title }}</span>
-              @if (c.runtime === 'kiro') { <span class="eng-badge">kiro{{ c.model ? ' · ' + c.model : '' }}</span> }
+              @if (c.runtime === 'kiro') { <span class="eng-badge">kiro · {{ c.model ?? ('perfil ' + (c.profile ?? 'por defecto')) }}</span> }
               <span class="muted goal">{{ c.goal }}</span>
             </a>
           </li>

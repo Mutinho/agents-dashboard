@@ -9,6 +9,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+// Modelos por rol: el campo `model` de cada agente toma el del perfil por defecto (config/kiro/models.json),
+// así los agentes usan su modelo recomendado también desde `kiro-cli --agent ad-<rol>`.
+const MODELS = JSON.parse(readFileSync(join(root, 'config/kiro/models.json'), 'utf8'));
+const DEFAULT_MODELS = MODELS.profiles[MODELS.default_profile].models;
 const SRC = join(root, 'config/opencode/agents');
 const OUT = join(root, 'config/kiro/agents');
 mkdirSync(OUT, { recursive: true });
@@ -77,11 +81,12 @@ for (const [role, cfg] of Object.entries(ROLES)) {
   const agent = {
     name: `ad-${role}`,
     description,
+    model: DEFAULT_MODELS[role],
     prompt: KIRO_NOTE + body,
     tools: cfg.tools,
     allowedTools: cfg.tools,
     toolsSettings: cfg.toolsSettings,
   };
   writeFileSync(join(OUT, `ad-${role}.json`), JSON.stringify(agent, null, 2) + '\n');
-  console.log(`ad-${role}.json  tools=[${cfg.tools.join(',')}]  prompt=${agent.prompt.length} chars`);
+  console.log(`ad-${role}.json  model=${agent.model}  tools=[${cfg.tools.join(',')}]  prompt=${agent.prompt.length} chars`);
 }

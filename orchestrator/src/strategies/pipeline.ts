@@ -186,7 +186,7 @@ export class PipelineStrategy {
   ): Promise<TurnResult> {
     const { runtime, repos, emit } = this.deps;
     const prompt = this.buildPrompt(role, context, feedback);
-    const result = await runtime.prompt(sessionId, role, prompt, { cwd: this.cwd, model: conversation.model });
+    const result = await runtime.prompt(sessionId, role, prompt, { cwd: this.cwd, model: conversation.model, profile: conversation.profile });
 
     await repos.addMessage({
       conversationId: conversation.id,
@@ -248,7 +248,7 @@ export class PipelineStrategy {
         const i = next++;
         const inst = this.devInstances[i];
         emit?.('turn.started', { conversationId: conversation.id, role: 'dev', instance: inst.label });
-        const r = await runtime.prompt(inst.sessionId, 'dev', makePrompt(i), { cwd: this.cwd, model: conversation.model });
+        const r = await runtime.prompt(inst.sessionId, 'dev', makePrompt(i), { cwd: this.cwd, model: conversation.model, profile: conversation.profile });
         results[i] = r;
         await repos.addMessage({
           conversationId: conversation.id,

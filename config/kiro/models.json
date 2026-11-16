@@ -1,0 +1,17 @@
+{
+  "default_profile": "equilibrado",
+  "profiles": {
+    "equilibrado": {
+      "description": "Sonnet 5.5 en PO, UX y Dev; Opus 5.5 en el Validador (revisor más fuerte que quien escribe).",
+      "models": { "po": "claude-sonnet-5.5", "ux": "claude-sonnet-5.5", "dev": "claude-sonnet-5.5", "validator": "claude-opus-5.5" }
+    },
+    "economico": {
+      "description": "Haiku 5.5 (x0.06) en PO, UX y Validador; Sonnet 5.5 solo en el Dev.",
+      "models": { "po": "claude-haiku-5.5", "ux": "claude-haiku-5.5", "dev": "claude-sonnet-5.5", "validator": "claude-haiku-5.5" }
+    },
+    "maxima": {
+      "description": "Opus 5.5 (x2.0) en Dev y Validador; Sonnet 5.5 en PO y UX. Mayor calidad y consumo de créditos.",
+      "models": { "po": "claude-sonnet-5.5", "ux": "claude-sonnet-5.5", "dev": "claude-opus-5.5", "validator": "claude-opus-5.5" }
+    }
+  }
+}

@@ -82,6 +82,8 @@ export interface Conversation {
   runtime: 'opencode' | 'kiro';
   /** Modelo opcional para el motor (NULL = el de cada agente / por defecto). */
   model: string | null;
+  /** Perfil de modelos por rol (solo Kiro). NULL = el perfil por defecto. */
+  profile: string | null;
   createdAt: string;
   finishedAt: string | null;
 }

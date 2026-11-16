@@ -134,12 +134,13 @@ export class Repos {
     budgetUsd = 0,
     runtime: 'opencode' | 'kiro' = 'opencode',
     model: string | null = null,
+    profile: string | null = null,
   ): Promise<Conversation> {
     const cid = id('conv');
     const { rows } = await this.pool.query(
-      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations, parallel_dev, max_parallel, budget_usd, runtime, model)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [cid, workspaceId, title, goal, strategy, maxIterations, parallelDev, maxParallel, budgetUsd, runtime, model],
+      `INSERT INTO conversations(id, workspace_id, title, goal, strategy, max_iterations, parallel_dev, max_parallel, budget_usd, runtime, model, profile)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [cid, workspaceId, title, goal, strategy, maxIterations, parallelDev, maxParallel, budgetUsd, runtime, model, profile],
     );
     return this.mapConversation(rows[0]);
   }
@@ -303,6 +304,7 @@ export class Repos {
     budgetUsd: Number(r.budget_usd ?? 0),
     runtime: (r.runtime ?? 'opencode') as 'opencode' | 'kiro',
     model: r.model ?? null,
+    profile: r.profile ?? null,
     createdAt: r.created_at?.toISOString?.() ?? String(r.created_at),
     finishedAt: r.finished_at?.toISOString?.() ?? null,
   });

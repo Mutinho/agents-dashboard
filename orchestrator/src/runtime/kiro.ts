@@ -9,12 +9,20 @@ export interface KiroModel {
   id: string; name: string; description: string;
   multiplier: number; unit: string; contextTokens: number;
 }
+export interface KiroProfile {
+  name: string;
+  description: string;
+  /** modelo por rol: po / ux / dev / validator */
+  models: Record<string, string>;
+}
 export interface KiroStatus {
   available: boolean;       // el runner responde
   loggedIn: boolean;        // hay sesión de Kiro iniciada en el contenedor
   identity: string | null;
   defaultModel: string;
   models: KiroModel[];
+  profiles: KiroProfile[];
+  defaultProfile: string | null;
   error?: string;
 }
 
@@ -39,7 +47,7 @@ export class KiroRuntime implements AgentRuntime {
   }
 
   async status(): Promise<KiroStatus> {
-    const empty: KiroStatus = { available: false, loggedIn: false, identity: null, defaultModel: 'auto', models: [] };
+    const empty: KiroStatus = { available: false, loggedIn: false, identity: null, defaultModel: 'auto', models: [], profiles: [], defaultProfile: null };
     try {
       const h = await fetch(`${this.baseUrl}/health`, { headers: this.headers(), signal: AbortSignal.timeout(20_000) });
       if (!h.ok) return { ...empty, error: `runner HTTP ${h.status}` };
@@ -47,7 +55,13 @@ export class KiroRuntime implements AgentRuntime {
       if (!health.loggedIn) return { ...empty, available: true, error: 'Kiro no tiene sesión iniciada en el contenedor (make kiro-login)' };
       const m = await fetch(`${this.baseUrl}/models`, { headers: this.headers(), signal: AbortSignal.timeout(30_000) });
       const md: any = m.ok ? await m.json() : { default: 'auto', models: [] };
-      return { available: true, loggedIn: true, identity: health.identity ?? null, defaultModel: md.default ?? 'auto', models: md.models ?? [] };
+      const pr = await fetch(`${this.baseUrl}/profiles`, { headers: this.headers(), signal: AbortSignal.timeout(15_000) });
+      const pd: any = pr.ok ? await pr.json() : { default: null, profiles: [] };
+      return {
+        available: true, loggedIn: true, identity: health.identity ?? null,
+        defaultModel: md.default ?? 'auto', models: md.models ?? [],
+        profiles: pd.profiles ?? [], defaultProfile: pd.default ?? null,
+      };
     } catch (err: any) {
       return { ...empty, error: `runner no accesible: ${err?.message ?? err}` };
     }
@@ -64,7 +78,7 @@ export class KiroRuntime implements AgentRuntime {
     try {
       const r = await fetch(`${this.baseUrl}/turn`, {
         method: 'POST', headers: this.headers(),
-        body: JSON.stringify({ agent: `ad-${role}`, model: opts.model || undefined, cwd: opts.cwd, prompt: text, timeoutMs }),
+        body: JSON.stringify({ agent: `ad-${role}`, model: opts.model || undefined, profile: opts.profile || undefined, cwd: opts.cwd, prompt: text, timeoutMs }),
         signal: AbortSignal.timeout(30_000),
       });
       const body: any = await r.json().catch(() => ({}));

@@ -7,6 +7,8 @@ export interface PromptOptions {
   cwd?: string;
   /** Modelo a usar (solo motores que lo admiten por turno, p.ej. Kiro). */
   model?: string | null;
+  /** Perfil de modelos por rol (solo Kiro). Ignorado si hay `model`. */
+  profile?: string | null;
 }
 
 /**

@@ -169,6 +169,8 @@ services:
       - ${KIRO_BIN_DIR:-${HOME}/.local/bin}/kiro-cli-term:/opt/kiro/bin/kiro-cli-term:ro
       # Agentes (generados con scripts/gen-kiro-agents.mjs) y skills compartidas con OpenCode
       - ./config/kiro/agents:/root/.kiro/agents:ro
+      # Perfiles de modelos por rol (editable sin reconstruir la imagen)
+      - ./config/kiro/models.json:/app/models.json:ro
       - ./config/opencode/skills:/root/.kiro/skills:ro
       # Credenciales de Kiro (login por device flow, una sola vez)
       - kiro_data:/root/.local/share/kiro-cli

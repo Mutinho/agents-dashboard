@@ -480,6 +480,20 @@ Cada conversación elige su **motor**: `opencode` (OpenRouter, pago por tokens) 
   el pipeline no depende de ningún motor. Migración 006 (`conversations.runtime/model`); `GET /api/runtimes`.
 - **Dashboard**: selector de motor y de modelo (con multiplicador de créditos) al crear la conversación.
 
+**Modelos por rol** (`config/kiro/models.json`): cada conversación Kiro usa un *perfil* con un modelo por rol, sin tener
+que elegir modelo al crearla. Prioridad: modelo único explícito > perfil de la conversación > perfil por defecto.
+
+| Perfil | PO | UX | Dev | Validador |
+|---|---|---|---|---|
+| **equilibrado** (defecto) | sonnet-5.5 | sonnet-5.5 | sonnet-5.5 | opus-5.5 |
+| economico | haiku-5.5 | haiku-5.5 | sonnet-5.5 | haiku-5.5 |
+| maxima | sonnet-5.5 | sonnet-5.5 | opus-5.5 | opus-5.5 |
+
+El runner lee `models.json` en cada petición (se edita sin reconstruir). Los agentes `ad-*.json` llevan además el modelo
+del perfil por defecto en su campo `model` (uso interactivo con `kiro-cli --agent ad-dev`): tras editar el perfil por
+defecto, `make kiro-agents`. Elección basada en la carga de cada rol y los multiplicadores de créditos, **no** en una
+comparación de calidad entre modelos (solo se ha ejecutado haiku-5.5 en pruebas completas).
+
 **Limitaciones conocidas**
 - Kiro CLI no expone tokens ni créditos por turno: se registran como "no medido". El presupuesto en USD **no aplica** a Kiro.
 - Los turnos de Kiro son sin estado (el orquestador reenvía el contexto completo en cada turno).

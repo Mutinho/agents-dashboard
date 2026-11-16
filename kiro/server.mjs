@@ -11,7 +11,7 @@
 // no hay estado entre turnos: el orquestador reenvía el contexto completo.
 import http from 'node:http';
 import { spawn, execFile } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -21,6 +21,28 @@ const MAX_CONCURRENT = Number(process.env.RUNNER_MAX_CONCURRENT ?? 6);
 const DEFAULT_TIMEOUT_MS = Number(process.env.RUNNER_TURN_TIMEOUT_MS ?? 20 * 60_000);
 const KEEP_MS = 30 * 60_000;
 const TOKEN = process.env.RUNNER_TOKEN ?? '';
+
+const MODELS_FILE = process.env.MODELS_FILE ?? '/app/models.json';
+
+/** Lee los perfiles en cada petición (permite editar el fichero sin reiniciar). */
+function loadProfiles() {
+  try { return JSON.parse(readFileSync(MODELS_FILE, 'utf8')); }
+  catch { return { default_profile: null, profiles: {} }; }
+}
+
+/**
+ * Modelo de un turno. Prioridad: modelo explícito > perfil indicado > perfil por defecto.
+ * Si no hay perfil configurado devuelve undefined y Kiro usa el modelo del propio agente.
+ */
+function resolveModel(role, model, profile) {
+  if (model) return { model };
+  const cfg = loadProfiles();
+  const name = profile || cfg.default_profile;
+  if (!name) return { model: undefined };
+  const p = cfg.profiles?.[name];
+  if (!p) return { error: `perfil de modelos desconocido: ${name}` };
+  return { model: p.models?.[role], profile: name };
+}
 
 const AGENTS = new Set(['ad-po', 'ad-ux', 'ad-dev', 'ad-validator']);
 const MODEL_RE = /^[a-z0-9][a-z0-9.\-_]{0,60}$/i;
@@ -125,7 +147,7 @@ function startTurn({ agent, model, cwd, prompt, timeoutMs }) {
 
 function view(t) {
   return {
-    id: t.id, status: t.status, exitCode: t.exitCode, error: t.error,
+    id: t.id, status: t.status, exitCode: t.exitCode, error: t.error, agent: t.agent, model: t.model ?? null,
     text: strip(t.stdout).trim(),
     tools: t.tools.slice(-40), toolCount: t.tools.length,
     startedAt: t.startedAt, finishedAt: t.finishedAt,
@@ -184,20 +206,30 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, await health());
     if (req.method === 'GET' && url.pathname === '/models') return json(res, 200, await models());
+    if (req.method === 'GET' && url.pathname === '/profiles') {
+      const cfg = loadProfiles();
+      return json(res, 200, {
+        default: cfg.default_profile,
+        profiles: Object.entries(cfg.profiles ?? {}).map(([name, p]) => ({ name, description: p.description ?? '', models: p.models ?? {} })),
+      });
+    }
 
     if (req.method === 'POST' && url.pathname === '/turn') {
       let body;
       try { body = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON inválido' }); }
-      const { agent, model, cwd, prompt } = body ?? {};
+      const { agent, model, profile, cwd, prompt } = body ?? {};
       if (!AGENTS.has(agent)) return json(res, 400, { error: `agente no permitido: ${agent}` });
       if (model && !MODEL_RE.test(model)) return json(res, 400, { error: 'modelo inválido' });
+      if (profile && !/^[a-z0-9_-]{1,30}$/i.test(profile)) return json(res, 400, { error: 'perfil inválido' });
+      const resolved = resolveModel(agent.replace(/^ad-/, ''), model, profile);
+      if (resolved.error) return json(res, 400, { error: resolved.error });
       if (typeof prompt !== 'string' || !prompt.trim()) return json(res, 400, { error: 'prompt requerido' });
       if (typeof cwd !== 'string' || !withinProjects(cwd)) return json(res, 400, { error: `cwd fuera de ${PROJECTS_DIR}` });
       if (!existsSync(cwd) || !statSync(cwd).isDirectory()) return json(res, 400, { error: 'cwd no existe' });
       if (running >= MAX_CONCURRENT) return json(res, 429, { error: 'demasiados turnos en curso' });
       const timeoutMs = Math.min(Number(body.timeoutMs) || DEFAULT_TIMEOUT_MS, 60 * 60_000);
-      const id = startTurn({ agent, model, cwd: resolve(cwd), prompt, timeoutMs });
-      return json(res, 202, { id });
+      const id = startTurn({ agent, model: resolved.model, cwd: resolve(cwd), prompt, timeoutMs });
+      return json(res, 202, { id, model: resolved.model ?? null, profile: resolved.profile ?? null });
     }
 
     if (parts[0] === 'turn' && parts[1]) {

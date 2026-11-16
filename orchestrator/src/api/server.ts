@@ -36,8 +36,8 @@ export function buildApi(deps: ApiDeps) {
       opencode: { available: oc.healthy, version: oc.version },
       kiro: k
         ? { available: k.available && k.loggedIn, loggedIn: k.loggedIn, identity: k.identity,
-            defaultModel: k.defaultModel, models: k.models, error: k.error ?? null }
-        : { available: false, loggedIn: false, identity: null, defaultModel: 'auto', models: [], error: 'servicio kiro no configurado' },
+            defaultModel: k.defaultModel, models: k.models, profiles: k.profiles, defaultProfile: k.defaultProfile, error: k.error ?? null }
+        : { available: false, loggedIn: false, identity: null, defaultModel: 'auto', models: [], profiles: [], defaultProfile: null, error: 'servicio kiro no configurado' },
     };
   });
 
@@ -183,9 +183,11 @@ export function buildApi(deps: ApiDeps) {
       budgetUsd?: number;
       runtime?: string;
       model?: string;
+      profile?: string;
     };
     if (!body.goal) return reply.code(400).send({ error: 'goal requerido' });
     const runtime = body.runtime === 'kiro' ? 'kiro' : 'opencode';
+    if (body.profile && !/^[a-z0-9_-]{1,30}$/i.test(body.profile)) return reply.code(400).send({ error: 'perfil inválido' });
     if (body.model && !/^[a-z0-9][a-z0-9.\-_]{0,60}$/i.test(body.model)) return reply.code(400).send({ error: 'modelo inválido' });
     return repos.createConversation(
       id,
@@ -198,6 +200,7 @@ export function buildApi(deps: ApiDeps) {
       body.budgetUsd ?? 0,
       runtime,
       body.model || null,
+      runtime === 'kiro' ? body.profile || null : null,
     );
   });
 
@@ -251,6 +254,9 @@ export function buildApi(deps: ApiDeps) {
       if (!kiro) return reply.code(400).send({ error: 'El motor Kiro no está configurado (levanta el profile "kiro").' });
       const ks = await kiro.status();
       if (!ks.available || !ks.loggedIn) return reply.code(400).send({ error: `Kiro no disponible: ${ks.error ?? 'sin sesión iniciada'}` });
+      if (conv.profile && !conv.model && !ks.profiles.some((p) => p.name === conv.profile)) {
+        return reply.code(400).send({ error: `Perfil de modelos desconocido: ${conv.profile}` });
+      }
       runtime = kiro;
     }
     const strategy = new PipelineStrategy({ runtime, repos, emit });

@@ -33,7 +33,9 @@ export class WorkspaceDetail implements OnInit {
   parallelDev = 1;
   maxIterations = 10;
   runtime: 'opencode' | 'kiro' = 'opencode';
-  model = ''; // '' = por defecto del motor
+  kiroMode: 'profile' | 'single' = 'profile';
+  profile = ''; // '' = perfil por defecto
+  model = '';   // modelo único (solo si kiroMode = 'single')
 
   private id = '';
 
@@ -50,8 +52,19 @@ export class WorkspaceDetail implements OnInit {
   setRuntime(r: 'opencode' | 'kiro') {
     if (r === 'kiro' && !this.kiroReady()) return;
     this.runtime = r;
+    this.kiroMode = 'profile';
+    this.profile = this.runtimes()?.kiro.defaultProfile ?? '';
     this.model = '';
   }
+
+  /** Perfil seleccionado (para mostrar su tabla rol → modelo). */
+  selectedProfile() {
+    const k = this.runtimes()?.kiro;
+    const name = this.profile || k?.defaultProfile;
+    return k?.profiles.find((p) => p.name === name) ?? null;
+  }
+
+  roles = ['po', 'ux', 'dev', 'validator'];
 
   async reload() {
     const detail = await this.api.workspace(this.id).catch(() => null);
@@ -73,7 +86,8 @@ export class WorkspaceDetail implements OnInit {
         parallelDev: Number(this.parallelDev) || 1,
         maxIterations: Number(this.maxIterations) || 10,
         runtime: this.runtime,
-        model: this.runtime === 'kiro' && this.model ? this.model : undefined,
+        model: this.runtime === 'kiro' && this.kiroMode === 'single' && this.model ? this.model : undefined,
+        profile: this.runtime === 'kiro' && this.kiroMode === 'profile' && this.profile ? this.profile : undefined,
       });
       this.router.navigate(['/conversations', conv.id]);
     } catch (e: any) {
